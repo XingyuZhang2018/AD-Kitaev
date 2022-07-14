@@ -1,0 +1,7 @@
+#!/bin/bash
+#PBS -S /bin/bash
+#PBS -j oe
+#PBS -V
+#PBS -l nodes=1:ppn=8:gpus=1
+project_dir=/home/xyzhang/research/ADBCVUMPS.jl
+julia --project=${project_dir} ${project_dir}/job/K_J_Γ_Γ′.jl --K -1.0 --J -0.1 --Γ 0.3 --Γ′ -0.02 --D 4 --chi 50 --folder ~/../../data1/xyzhang/ADBCVUMPS/K_J_Γ_Γ′/

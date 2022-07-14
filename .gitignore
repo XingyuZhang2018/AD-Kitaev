@@ -1,0 +1,6 @@
+*.jl.*.cov
+*.jl.cov
+*.jl.mem
+*.jld2
+*.log
+/Manifest.toml
