@@ -1,57 +1,20 @@
-using ADBCVUMPS
-using ADBCVUMPS:σx,σy,σz,buildbcipeps, optcont
-using BCVUMPS
-using BCVUMPS: ALCtoAC
-using CUDA
-using FileIO
-using LinearAlgebra: norm, I, cross
-using OMEinsum
-using Plots
-using Random
-using Statistics: std
-    
-function read_xy(file)
-    f = open(file, "r" )
-    n = countlines(f)
-    seekstart(f)
-    X = zeros(n)
-    Y = zeros(n)
-    for i = 1:n
-        x,y = split(readline(f), ",")
-        X[i],Y[i] = parse.(Float64,[x,y])
-    end
-    X,Y
-end
+using VUMPS: ALCtoAC
+using Statistics: std, cross
 
-function read_Exy(file)
-    f = open(file, "r" )
-    n = countlines(f)
-    seekstart(f)
-    X = zeros(n)
-    Y1 = zeros(n)
-    Y2 = zeros(n)
-    Y3 = zeros(n)
-    Y4 = zeros(n)
-    for i = 1:n
-        x,e1,e2,e3,e4 = split(readline(f), "  ")
-        # X[i],Y[i] = parse(Float64,x),min(parse(Float64,e1),parse(Float64,e2),parse(Float64,e3),parse(Float64,e4))
-        X[i],Y1[i],Y2[i],Y3[i],Y4[i] = parse.(Float64,[x,e1,e2,e3,e4])
-    end
-    X,Y1,Y2,Y3,Y4
-end
+export fidelity, observable
 
-function observable(model, fdirection, field, type, folder, D, χ, tol, maxiter, miniter)
+function observable(model, fdirection, field, type, folder, atype, D, χ, tol, maxiter, miniter)
     if field == 0.0
         observable_log = folder*"$(model)/D$(D)_χ$(χ)_observable.log"
     else
-        observable_log = folder*"$(model)_field$(fdirection)_$(field)$(type)/D$(D)_χ$(χ)_observable.log"
+        observable_log = folder*"$(model)_field$(fdirection)_$(@sprintf("%0.2f", field))$(type)/D$(D)_χ$(χ)_observable.log"
     end
     if isfile(observable_log)
         println("load observable from $(observable_log)")
         f = open(observable_log, "r" )
         mag, ferro, stripy, zigzag, Neel, etol, ΔE, Cross = parse.(Float64,split(readline(f), "   "))
     else
-        bulk, key = init_ipeps(model, fdirection, field; folder = folder, type = type, atype = CuArray, D=D, χ=χ, tol=tol, maxiter=maxiter, miniter=miniter, verbose = true)
+        bulk, key = init_ipeps(model, fdirection, field; folder = folder, type = type, atype = atype, D=D, χ=χ, tol=tol, maxiter=maxiter, miniter=miniter, verbose = true)
         folder, model, field, atype, D, χ, tol, maxiter, miniter = key
         h = hamiltonian(model)
         oc = optcont(D, χ)
@@ -64,13 +27,13 @@ function observable(model, fdirection, field, type, folder, D, χ, tol, maxiter,
         a = [ein"ijklaa -> ijkl"(ap[i]) for i = 1:Ni*Nj]
         a = reshape(a, Ni, Nj)
         
-        chkp_file_obs = folder*"obs_D$(D^2)_chi$(χ).jld2"
+        chkp_file_obs = folder*"obs_D$(D^2)_χ$(χ).jld2"
         FL, FR = load(chkp_file_obs)["env"]
         chkp_file_up = folder*"up_D$(D^2)_χ$(χ).jld2"                     
-        rtup = SquareBCVUMPSRuntime(a, chkp_file_up, χ; verbose = false)   
+        rtup = SquareVUMPSRuntime(a, chkp_file_up, χ; verbose = false)   
         FLu, FRu, ALu, ARu, Cu = rtup.FL, rtup.FR, rtup.AL, rtup.AR, rtup.C
         chkp_file_down = folder*"down_D$(D^2)_χ$(χ).jld2"                              
-        rtdown = SquareBCVUMPSRuntime(a, chkp_file_down, χ; verbose = false)   
+        rtdown = SquareVUMPSRuntime(a, chkp_file_down, χ; verbose = false)   
         ALd,ARd,Cd = rtdown.AL,rtdown.AR,rtdown.C
         ACu = ALCtoAC(ALu, Cu)
         ACd = ALCtoAC(ALd, Cd)
@@ -243,124 +206,3 @@ function fidelity(key1,key2)
     # end
     return Ftol
 end
-
-function deriv_y(x,y)
-    n = length(x)
-    dy = zeros(n)
-    for i = 1:n
-        if i == 1
-            dy[i] = (y[i+1] - y[i])/(x[i+1] - x[i])
-        elseif i == n
-            dy[i] = (y[i] - y[i-1])/(x[i] - x[i-1])
-        else
-            dy[i] = (y[i+1] - y[i-1])/(x[i+1] - x[i-1])
-        end
-    end
-    return dy
-end
-
-model = K_J_Γ_Γ′(-1.0, -0.1, 0.3, -0.02)
-fdirection = [1.0, 1.0, 0.825221]
-type = "_random"
-folder = "./../../../../data/xyzhang/ADBCVUMPS/K_J_Γ_Γ′_1x2/"
-D = 4
-χ = 80
-tol = 1e-10
-maxiter = 10
-miniter = 2
-f = 0.61:0.02:0.73
-field, F = [], []
-for i = 1:(length(f)-1)
-    key1 = model, fdirection, f[i], type, folder, D, χ, tol, maxiter, miniter
-    key2 = model, fdirection, f[i+1], type, folder, D, χ, tol, maxiter, miniter
-    field = [field; f[i]]
-    F = [F; fidelity(key1,key2)]
-end
-# fidelityplot = plot()
-plot!(fidelityplot, field, F, shape = :auto, label = "5° fidelity D = $(D)", lw = 2,legend = :bottomright)
-
-# Random.seed!(100)
-# folder, D, χ, tol, maxiter, miniter = "./../../../../data/xyzhang/ADBCVUMPS/K_J_Γ_Γ′_1x2/", 4, 80, 1e-10, 10, 5
-# f = 0.61:0.01:0.8
-# # f = 0.0:0.01:0.03
-# fdirection = [1.0, 1.0, 0.985263]
-# # 0.985263
-# # 0.963424
-# # 0.825221
-# type = "_random"
-# # Γ = 0.3
-# field, mag, ferro, stripy, zigzag, Neel, E, ΔE, Cross = [], [], [], [], [], [], [], [], []
-# for x in f
-#     @show x
-#     model = K_J_Γ_Γ′(-1.0, -0.1, 0.3, -0.02)
-#     if x == 0.0
-#         tfolder = folder*"$(model)/"
-#     else
-#         # if x > 0.13
-#         #     type = "_random"
-#         # else
-#         #     type = "_zigzag"
-#         # end
-#         # type = ""
-#         tfolder = folder*"$(model)_field$(fdirection)_$(x)$(type)/"
-#         if isdir(tfolder)
-#             y1, y2, y3, y4, y5, y6, y7, y8 = observable(model, fdirection, x, "$(type)", folder, D, χ, tol, maxiter, miniter)
-#             field = [field; x]
-#             mag = [mag; y1]
-#             ferro = [ferro; y2]
-#             stripy = [stripy; y3]
-#             zigzag = [zigzag; y4]
-#             Neel = [Neel; y5]
-#             E = [E; y6]
-#             ΔE = [ΔE; y7]
-#             Cross = [Cross; y8]
-#         end
-#     end
-# end
-
-# magplot = plot()
-# # plot!(magplot, field, mag, shape = :auto, title = "mag-h", label = "mag D = $(D)", lw = 2)
-# plot!(magplot, field, ferro, shape = :auto, label = "0.4° mag D = $(D)", lw = 2)
-# # plot!(magplot, field, stripy, shape = :auto, label = "stripy D = $(D)", lw = 2)
-# # plot!(magplot, field, Neel, shape = :auto, label = "Neel D = $(D)", lw = 2)
-# # plot!(magplot, field, zigzag, shape = :auto, label = "zigzag D = $(D)",legend = :outertop, xlabel = "h", ylabel = "Order Parameters", lw = 2)
-# dferro = deriv_y(field, ferro)*1.5
-# plot!(magplot, field, dferro, shape = :auto, label = "0.4° ∂mag D = $(D)", lw = 2)
-# X,Y = read_xy(folder*"2021WeiLi-mag.log")
-# plot!(magplot, X/187.782, Y, shape = :auto, label = "2021WeiLi-mag", lw = 2, rightmargin = 2.5Plots.cm)
-# dmag = deriv_y(X/187.782, Y)/2
-# plot!(magplot, X/187.782, dmag, shape = :auto, label = "2021WeiLi-dmag", lw = 2, rightmargin = 2.5Plots.cm)
-# # X,Y = read_xy(folder*"2019Gordon-dmag.log")
-# # # plot!(magplot, X, Y, shape = :auto, label = "2019Gordon 5° dmag",legend = :topright, xlabel = "h", ylabel = "Order Parameters",rightmargin = 1.5Plots.cm, lw = 2)
-
-# # # ΔEplot = plot()
-# ΔEplot = twinx()
-# plot!(ΔEplot, field, abs.(ΔE), shape = :x, label = "ΔE D = $(D) ferro",legend = :topright, xlabel = "h", ylabel = "ΔE", lw = 2)
-
-# Eplot = plot()
-# plot!(Eplot, field, E, shape = :auto, label = "E 1x2 cell D = $(D) $(type)",legend = :bottomleft, xlabel = "h", ylabel = "E", lw = 2)
-# dEplot = plot()
-# dEplot = twinx()
-# dE = deriv_y(field, E)
-# plot!(dEplot, field, dE, shape = :auto, color = :red, label = "∂E 1x2 cell D = $(D)",legend = :bottomright, xlabel = "Γ/|K|", ylabel = "∂E", lw = 2, rightmargin = 2.5Plots.cm)
-# ddEplot = twinx()
-# ddE = deriv_y(field, dE)
-# plot!(ddEplot, field, ddE, shape = :auto, label = "∂²E 1x2 cell D = $(D)", legend = :topright, xlabel = "Γ/|K|", ylabel = "∂²E", lw = 2)
-# X,Y1,Y2,Y3,Y4 = read_Exy(folder*"2021WeiLi-E.log")
-# plot!(Eplot, X*sqrt(3), Y1, shape = :auto, label = "2021WeiLi-fDMRG-YC4x12x2",legend = :topright, xlabel = "h", ylabel = "E", lw = 2)
-# plot!(Eplot, X*sqrt(3), Y2, shape = :auto, label = "2021WeiLi-fDMRG-YC6x12x2",legend = :topright, xlabel = "h", ylabel = "E", lw = 2)
-# plot!(Eplot, X*sqrt(3), Y3, shape = :auto, label = "2021WeiLi-iDMRG-YC4",legend = :topright, xlabel = "h", ylabel = "E", lw = 2)
-# plot!(Eplot, X*sqrt(3), Y4, shape = :auto, label = "2021WeiLi-iDMRG-YC6",legend = :bottomleft, xlabel = "h", ylabel = "E", lw = 2)
-# dE2 = deriv_y(X*sqrt(3), Y4)
-# plot!(dEplot, X*sqrt(3), dE2, shape = :auto,  color = :red, label = "2021WeiLi-iDMRG-YC6 dE",legend =:topright, xlabel = "h", ylabel = "dE", lw = 2)
-
-
-# # Crossplot = plot()
-# # plot!(Crossplot, Γ, Cross, shape = :auto, label = "Cross D = $(D)",legend = :bottomright, xlabel = "Γ/|K|", ylabel = "Cross norm", lw = 2)
-# # savefig(Eplot,"./plot/K_Γ_1x2&1x3_E-Γ-D$(D)_χ$(χ).svg")
-# # @show zigzag stripy ferro mag Neel ΔE Cross
-# for i in 1:length(dferro)
-#     if dferro[i] > 0.5
-#         dferro[i] = 0.5
-#     end
-# end
