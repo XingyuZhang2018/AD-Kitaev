@@ -3,6 +3,7 @@ using LinearAlgebra: I, norm
 using LineSearches
 using OMEinsum: get_size_dict, optimize_greedy,  MinSpaceDiff
 using Optim
+using Printf: @sprintf
 using TimerOutputs
 using VUMPS
 
@@ -161,7 +162,7 @@ function init_ipeps(model::HamiltonianModel, fdirection::Vector{Float64} = [0.0,
     if field == 0.0
         folder *= "$(model)/"
     else
-        folder *= "$(model)_field$(fdirection)_$(field)$(type)/"
+        folder *= "$(model)_field$(fdirection)_$(@sprintf("%0.2f", field))$(type)/"
         field = field * fdirection / norm(fdirection)
     end
     mkpath(folder)
