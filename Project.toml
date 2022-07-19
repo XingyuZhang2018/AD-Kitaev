@@ -24,7 +24,9 @@ VUMPS = "260a78e0-cbf2-49ba-8157-48058c700f32"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
-julia = "1.7"
+CUDA = "3.11.0"
+OMEinsum = "0.6.13"
+julia = "1.7.1"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

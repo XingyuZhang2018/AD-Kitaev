@@ -1,0 +1,8 @@
+#!/bin/bash									        
+#SBATCH --partition=titanv							#任务提交到分区
+#SBATCH --nodes=1								    #使用一个节点
+# #SBATCH --gres=gpu:1		  		        	    #使用1块卡
+#SBATCH --time=9999:00:00							#总运行时间，单位小时
+module load julia-1.7.1
+project_dir=~/research/AD-Kitaev
+julia --project=${project_dir} ${project_dir}/job/K_J_Γ_Γ′.jl --K -1.0 --J -0.1 --Γ 0.3 --Γ′ -0.02 --field 0.0 --D 3 --chi 20 --folder ~/../../data/xyzhang/ADBCVUMPS/K_J_Γ_Γ′_1x2/ --type _random
