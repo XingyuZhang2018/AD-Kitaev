@@ -24,11 +24,11 @@ function energy(h, bulk, oc, key; verbose = true, savefile = true)
     ap = [reshape(ap[i], D^2, D^2, D^2, D^2, 4, 4) for i = 1:Ni*Nj]
     ap = reshape(ap, Ni, Nj)
     
-    a = atype{ComplexF64}([])
-    for i = 1:Ni*Nj
-        a = [a; ein"ijklaa -> ijkl"(ap[i])]
+    a = Zygote.Buffer(ap[1], D^2,D^2,D^2,D^2,Ni,Nj)
+    for j in 1:Nj, i in 1:Ni
+        a[:,:,:,:,i,j] = ein"ijklaa -> ijkl"(ap[i,j])
     end
-    a = permutedims(reshape(a, (D^2, Ni, Nj, D^2, D^2, D^2)),(1,4,5,6,2,3))
+    a = copy(a)
 
     env = obs_env(a; χ = χ, tol = tol, maxiter = maxiter, miniter = miniter, verbose = verbose, savefile = savefile, infolder = folder, outfolder = folder)
     e = expectationvalue(h, ap, env, oc, key)
