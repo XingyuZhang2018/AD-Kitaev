@@ -6,6 +6,7 @@ using Optim
 using Printf: @sprintf
 using TimerOutputs
 using VUMPS
+using CUDA
 
 export init_ipeps, energy, optimiseipeps
 
@@ -16,14 +17,18 @@ return the energy of the `bcipeps` 2-site hamiltonian `h` and calculated via a
 BCVUMPS with parameters `χ`, `tol` and `maxiter`.
 """
 function energy(h, bulk, oc, key; verbose = true, savefile = true)
-    folder, _, _, _, D, χ, tol, maxiter, miniter = key
+    folder, _, _, atype, D, χ, tol, maxiter, miniter = key
     # bcipeps = indexperm_symmetrize(bcipeps)  # NOTE: this is not good
     Ni,Nj = size(bulk)
     ap = [ein"abcdx,ijkly -> aibjckdlxy"(bulk[i], conj(bulk[i])) for i = 1:Ni*Nj]
     ap = [reshape(ap[i], D^2, D^2, D^2, D^2, 4, 4) for i = 1:Ni*Nj]
     ap = reshape(ap, Ni, Nj)
-    a = [ein"ijklaa -> ijkl"(ap[i]) for i = 1:Ni*Nj]
-    a = reshape(a, Ni, Nj)
+    
+    a = Zygote.Buffer(ap[1], D^2,D^2,D^2,D^2,Ni,Nj)
+    for j in 1:Nj, i in 1:Ni
+        a[:,:,:,:,i,j] = ein"ijklaa -> ijkl"(ap[i,j])
+    end
+    a = copy(a)
 
     env = obs_env(a; χ = χ, tol = tol, maxiter = maxiter, miniter = miniter, verbose = verbose, savefile = savefile, infolder = folder, outfolder = folder)
     e = expectationvalue(h, ap, env, oc, key)
@@ -54,6 +59,14 @@ function optcont(D::Int, χ::Int)
     oc1, oc2
 end
 
+function trans_to_arr_of_arr(A::AbstractArray{T,5}) where T
+    reshape([A[:,:,:,1,j] for j in 1:2],1,2)
+end
+
+function trans_to_arr_of_arr(A::AbstractArray{T,4}) where T
+    reshape([A[:,:,1,j] for j in 1:2],1,2)
+end
+
 """
     expectationvalue(h, ap, env)
 
@@ -62,10 +75,11 @@ described by rank-6 tensor `ap` each and an environment described by
 a `SquareBCVUMPSRuntime` `env`.
 """
 function expectationvalue(h, ap, env, oc, key)
-    M, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR, FLu, FRu = env
+    _, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR, FLu, FRu = env
     _, _, field, atype, _, _, _, _, _ = key
     oc1, oc2 = oc
-    Ni,Nj = size(M)
+    Ni,Nj = size(ALu)[[4,5]]
+    ALu, Cu, ARu, ALd, Cd, ARd, FL, FR, FLu, FRu = map(trans_to_arr_of_arr, [ALu, Cu, ARu, ALd, Cd, ARd, FL, FR, FLu, FRu])
     ACu = reshape([ein"asc,cb -> asb"(ALu[i],Cu[i]) for i=1:Ni*Nj],Ni,Nj)
     ACd = reshape([ein"asc,cb -> asb"(ALd[i],Cd[i]) for i=1:Ni*Nj],Ni,Nj)
     hx, hy, hz = h

@@ -3,14 +3,13 @@
 
 # global variables
 model="K_J_Γ_Γ′{Float64}(-1.0, -0.1, 0.3, -0.02)"
-D=2
-chi=20
-atype=Array
+D=5
+chi=100
 initial_file="K_J_Γ_Γ′{Float64}(-1.0, -0.1, 0.3, -0.02)_field[1.0, 1.0, 1.0]_0.40_random"
 target_config=ferro
 h_init=0.05
 h_step=0.01
-h_end=0.20
+h_end=0.15
 
 # copy determined configuration files as initial files
 cd ~/../../data/xyzhang/ADBCVUMPS/K_J_Γ_Γ′_1x2/
