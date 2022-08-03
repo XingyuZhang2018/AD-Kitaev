@@ -1,6 +1,6 @@
 using ADBCVUMPS
-using ADBCVUMPS:σx,σy,σz,buildbcipeps, optcont
-using BCVUMPS
+using ADBCVUMPS:σx,σy,σz,buildbcipeps, optcont, trans_to_arr_of_arr
+using VUMPS
 using CUDA
 using FileIO
 using LinearAlgebra: norm, I, cross
@@ -20,8 +20,11 @@ function observable(model, folder, D, χ, tol, maxiter, miniter)
     ap = [ein"abcdx,ijkly -> aibjckdlxy"(bulk[i], conj(bulk[i])) for i = 1:Ni*Nj]
     ap = [reshape(ap[i], D^2, D^2, D^2, D^2, 4, 4) for i = 1:Ni*Nj]
     ap = reshape(ap, Ni, Nj)
-    a = [ein"ijklaa -> ijkl"(ap[i]) for i = 1:Ni*Nj]
-    a = reshape(a, Ni, Nj)
+    a = Zygote.Buffer(ap[1], D^2,D^2,D^2,D^2,Ni,Nj)
+    for j in 1:Nj, i in 1:Ni
+        a[:,:,:,:,i,j] = ein"ijklaa -> ijkl"(ap[i,j])
+    end
+    a = copy(a)
     
     chkp_file_obs = folder*"obs_D$(D^2)_chi$(χ).jld2"
     FL, FR = load(chkp_file_obs)["env"]
@@ -32,6 +35,7 @@ function observable(model, folder, D, χ, tol, maxiter, miniter)
     rtdown = SquareBCVUMPSRuntime(a, chkp_file_down, χ; verbose = false)   
     ALd,ARd,Cd = rtdown.AL,rtdown.AR,rtdown.C
 
+    ALu, Cu, ARu, ALd, Cd, ARd, FL, FR, FLu, FRu = map(trans_to_arr_of_arr, [ALu, Cu, ARu, ALd, Cd, ARd, FL, FR, FLu, FRu])
     M = Array{Array{ComplexF64,1},2}(undef, Nj, 2)
     Sx1 = reshape(ein"ab,cd -> acbd"(σx/2, I(2)), (4,4))
     Sx2 = reshape(ein"ab,cd -> acbd"(I(2), σx/2), (4,4))
@@ -131,9 +135,9 @@ end
 
 
 Random.seed!(100)
-folder, tol, maxiter, miniter = "./../../../../data/xyzhang/ADBCVUMPS/K_J_Γ_Γ′_1x2/", 1e-10, 10, 2
+folder, tol, maxiter, miniter = "./../../../../data/xyzhang/AD-Kitaev/K_J_Γ_Γ′_1x2/", 1e-10, 10, 2
 Γ = 0.03
-Dχ = [[2,20]]
+Dχ = [[4,80]]
 mag, ferro, stripy, zigzag, Neel, E, ΔE, Cross = [], [], [], [], [], [], [], []
 for (D,χ) in Dχ
     model = K_J_Γ_Γ′(-1.0, 0.0, Γ, 0.0)

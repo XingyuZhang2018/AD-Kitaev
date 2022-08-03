@@ -5,13 +5,13 @@ using Printf: @sprintf
 using Random
 
 Random.seed!(100)
-folder, atype, D, χ, tol, maxiter, miniter = "E:/1 - research/4.9 - AutoDiff/data/ADBCVUMPS/K_J_Γ_Γ′_1x2/", Array, 4, 80, 1e-10, 10, 1
-f = 0.05:0.01:0.2
+folder, atype, D, χ, tol, maxiter, miniter = "E:/1 - research/4.9 - AutoDiff/data/ADBCVUMPS/K_J_Γ_Γ′_1x2/", CuArray, 5, 100, 1e-10, 10, 1
+f = 0.05:0.01:0.15
 fdirection = [1.0, 1.0, 1.0]
 # 0.985263
 # 0.963424
 # 0.825221
-type = "_random"
+type = "_ferro"
 field, mag, ferro, stripy, zigzag, Neel, E, ΔE, Cross = [], [], [], [], [], [], [], [], []
 for x in f
     @show x
@@ -19,25 +19,25 @@ for x in f
     if x == 0.0
         tfolder = folder*"$(model)/"
     else
-        # if x > 0.13
-        #     type = "_random"
-        # else
-        #     type = "_zigzag"
-        # end
-        # type = ""
+    # if x > 0.13
+    #     type = "_random"
+    # else
+    #     type = "_zigzag"
+    # end
+    # type = ""
         tfolder = folder*"$(model)_field$(fdirection)_$(@sprintf("%0.2f", x))$(type)/"
-        if isdir(tfolder)
-            y1, y2, y3, y4, y5, y6, y7, y8 = observable(model, fdirection, x, "$(type)", folder, atype, D, χ, tol, maxiter, miniter)
-            field = [field; x]
-            mag = [mag; y1]
-            ferro = [ferro; y2]
-            stripy = [stripy; y3]
-            zigzag = [zigzag; y4]
-            Neel = [Neel; y5]
-            E = [E; y6]
-            ΔE = [ΔE; y7]
-            Cross = [Cross; y8]
-        end
+    end
+    if isdir(tfolder)
+        y1, y2, y3, y4, y5, y6, y7, y8 = observable(model, fdirection, x, "$(type)", folder, atype, D, χ, tol, maxiter, miniter)
+        field = [field; x]
+        mag = [mag; y1]
+        ferro = [ferro; y2]
+        stripy = [stripy; y3]
+        zigzag = [zigzag; y4]
+        Neel = [Neel; y5]
+        E = [E; y6]
+        ΔE = [ΔE; y7]
+        Cross = [Cross; y8]
     end
 end
 

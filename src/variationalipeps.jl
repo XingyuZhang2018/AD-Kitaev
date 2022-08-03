@@ -19,14 +19,16 @@ BCVUMPS with parameters `χ`, `tol` and `maxiter`.
 function energy(h, bulk, oc, key; verbose = true, savefile = true)
     folder, _, _, atype, D, χ, tol, maxiter, miniter = key
     # bcipeps = indexperm_symmetrize(bcipeps)  # NOTE: this is not good
-    Ni,Nj = size(bulk)
-    ap = [ein"abcdx,ijkly -> aibjckdlxy"(bulk[i], conj(bulk[i])) for i = 1:Ni*Nj]
-    ap = [reshape(ap[i], D^2, D^2, D^2, D^2, 4, 4) for i = 1:Ni*Nj]
-    ap = reshape(ap, Ni, Nj)
-    
-    a = Zygote.Buffer(ap[1], D^2,D^2,D^2,D^2,Ni,Nj)
-    for j in 1:Nj, i in 1:Ni
-        a[:,:,:,:,i,j] = ein"ijklaa -> ijkl"(ap[i,j])
+    Ni,Nj = size(bulk)[end-1:end]
+    ap = Zygote.Buffer(bulk, D^2,D^2,D^2,D^2,2,2,Ni,Nj)
+    @inbounds @views for j in 1:Nj, i in 1:Ni
+        ap[:,:,:,:,:,:,i,j] = reshape(ein"abcdx,ijkly -> aibjckdlxy"(bulk[:,:,:,:,:,i,j], conj(bulk[:,:,:,:,:,i,j])), D^2, D^2, D^2, D^2, 2, 2)
+    end
+    ap = copy(ap)
+
+    a = Zygote.Buffer(bulk, D^2,D^2,D^2,D^2,Ni,Nj)
+    @inbounds @views for j in 1:Nj, i in 1:Ni
+        a[:,:,:,:,i,j] = ein"ijklaa -> ijkl"(ap[:,:,:,:,:,:,i,j])
     end
     a = copy(a)
 
@@ -59,14 +61,6 @@ function optcont(D::Int, χ::Int)
     oc1, oc2
 end
 
-function trans_to_arr_of_arr(A::AbstractArray{T,5}) where T
-    reshape([A[:,:,:,1,j] for j in 1:2],1,2)
-end
-
-function trans_to_arr_of_arr(A::AbstractArray{T,4}) where T
-    reshape([A[:,:,1,j] for j in 1:2],1,2)
-end
-
 """
     expectationvalue(h, ap, env)
 
@@ -78,68 +72,59 @@ function expectationvalue(h, ap, env, oc, key)
     _, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR, FLu, FRu = env
     _, _, field, atype, _, _, _, _, _ = key
     oc1, oc2 = oc
-    Ni,Nj = size(ALu)[[4,5]]
-    ALu, Cu, ARu, ALd, Cd, ARd, FL, FR, FLu, FRu = map(trans_to_arr_of_arr, [ALu, Cu, ARu, ALd, Cd, ARd, FL, FR, FLu, FRu])
-    ACu = reshape([ein"asc,cb -> asb"(ALu[i],Cu[i]) for i=1:Ni*Nj],Ni,Nj)
-    ACd = reshape([ein"asc,cb -> asb"(ALd[i],Cd[i]) for i=1:Ni*Nj],Ni,Nj)
+    Ni,Nj = size(ALu)[end-1:end]
+    ACu = ALCtoAC(ALu,Cu)
+    ACd = ALCtoAC(ALd,Cd)
     hx, hy, hz = h
     ap /= norm(ap)
     etol = 0
-    Zygote.@ignore begin
-        hx = atype(reshape(permutedims(hx, (1,3,2,4)), (4,4)))
-        hy = atype(reshape(ein"ae,bfcg,dh -> abefcdgh"(I(2), hy, I(2)), (4,4,4,4)))
-        hz = atype(reshape(ein"ae,bfcg,dh -> abefcdgh"(I(2), hz, I(2)), (4,4,4,4)))
-    end
 
-    for j = 1:Nj, i = 1:Ni
+    @inbounds @views for j = 1:Nj, i = 1:Ni
+        if (i,j) in [(1,1),(2,2)]
+            hij = atype(hy)
+        else
+            hij = atype(hx)
+        end
         ir = Ni + 1 - i
         jr = j + 1 - (j==Nj) * Nj
-        lr = oc1(FL[i,j],ACu[i,j],ap[i,j],ACd[ir,j],FR[i,jr],ARu[i,jr],ap[i,jr],ARd[ir,jr])
-        ey = ein"pqrs, pqrs -> "(lr,hy)
+        lr = oc1(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[:,:,:,:,:,:,i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,jr],ARu[:,:,:,i,jr],ap[:,:,:,:,:,:,i,jr],ARd[:,:,:,ir,jr])
+        e = ein"pqrs, pqrs -> "(lr,hij)
         n = ein"pprr -> "(lr)
-        println("hy = $(Array(ey)[]/Array(n)[])")
-        etol += Array(ey)[]/Array(n)[]
-
-        lr2 = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[i,j],ACu[i,j],ap[i,j],ACd[ir,j],FR[i,j])
-        ex = ein"pq, pq -> "(lr2,hx)
-        n = Array(ein"pp -> "(lr2))[]
-        println("hx = $(Array(ex)[]/n)")
-        etol += Array(ex)[]/n
+        if (i,j) in [(1,1),(2,2)]
+            println("hy = $(Array(e)[]/Array(n)[])")
+        else
+            println("hx = $(Array(e)[]/Array(n)[])")
+        end
+        etol += Array(e)[]/Array(n)[]
     end
     
-    for j = 1:Nj, i = 1:Ni
-        ir = i + 1 - Ni * (i==Ni)
-        lr3 = oc2(ACu[i,j],FLu[i,j],ap[i,j],FRu[i,j],FL[ir,j],ap[ir,j],FR[ir,j],ACd[i,j])
-        ez = ein"pqrs, pqrs -> "(lr3,hz)
-        n = ein"pprr -> "(lr3)
-        println("hz = $(Array(ez)[]/Array(n)[])") 
-        etol += Array(ez)[]/Array(n)[]
+    @inbounds @views for j = 1:Nj, i = 1:Ni
+        if (i,j) in [(1,1),(2,2)]
+            ir = i + 1 - Ni * (i==Ni)
+            lr3 = oc2(ACu[:,:,:,i,j],FLu[:,:,:,i,j],ap[:,:,:,:,:,:,i,j],FRu[:,:,:,i,j],FL[:,:,:,ir,j],ap[:,:,:,:,:,:,ir,j],FR[:,:,:,ir,j],ACd[:,:,:,i,j])
+            ez = ein"pqrs, pqrs -> "(lr3,atype(hz))
+            n = ein"pprr -> "(lr3)
+            println("hz = $(Array(ez)[]/Array(n)[])") 
+            etol += Array(ez)[]/Array(n)[]
+        end
     end
 
     if field != 0.0
-        Sx1, Sx2, Sy1, Sy2, Sz1, Sz2 = [],[],[],[],[],[]
         Zygote.@ignore begin
-            Sx1 = reshape(ein"ab,cd -> acbd"(σx/2, I(2)), (4,4))
-            Sx2 = reshape(ein"ab,cd -> acbd"(I(2), σx/2), (4,4))
-            Sy1 = reshape(ein"ab,cd -> acbd"(σy/2, I(2)), (4,4))
-            Sy2 = reshape(ein"ab,cd -> acbd"(I(2), σy/2), (4,4))
-            Sz1 = reshape(ein"ab,cd -> acbd"(σz/2, I(2)), (4,4))
-            Sz2 = reshape(ein"ab,cd -> acbd"(I(2), σz/2), (4,4))
+            Sx = σx/2
+            Sy = σy/2
+            Sz = σz/2
         end
         for j = 1:Nj, i = 1:Ni
             ir = Ni + 1 - i
-            lr3 = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[i,j],ACu[i,j],ap[i,j],ACd[ir,j],FR[i,j])
-            Mx1 = ein"pq, pq -> "(lr3,atype(Sx1))
-            Mx2 = ein"pq, pq -> "(lr3,atype(Sx2))
-            My1 = ein"pq, pq -> "(lr3,atype(Sy1))
-            My2 = ein"pq, pq -> "(lr3,atype(Sy2))
-            Mz1 = ein"pq, pq -> "(lr3,atype(Sz1))
-            Mz2 = ein"pq, pq -> "(lr3,atype(Sz2))
+            lr3 = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[:,:,:,:,:,:,i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,j])
+            Mx = ein"pq, pq -> "(lr3,atype(Sx))
+            My = ein"pq, pq -> "(lr3,atype(Sy))
+            Mz = ein"pq, pq -> "(lr3,atype(Sz))
             n3 = Array(ein"pp -> "(lr3))[]
-            M1 = [Array(Mx1)[]/n3, Array(My1)[]/n3, Array(Mz1)[]/n3]
-            M2 = [Array(Mx2)[]/n3, Array(My2)[]/n3, Array(Mz2)[]/n3]
-            @show M1 M2
-            etol -= (M1 + M2)' * field / 2
+            M = [Array(Mx)[]/n3, Array(My)[]/n3, Array(Mz)[]/n3]
+            @show M
+            etol -= M' * field
         end
     end
 
@@ -185,7 +170,7 @@ function init_ipeps(model::HamiltonianModel, fdirection::Vector{Float64} = [0.0,
         bulk = load(chkp_file)["bcipeps"]
         verbose && println("load BCiPEPS from $chkp_file")
     else
-        bulk = rand(ComplexF64,D,D,D,D,4,2)
+        bulk = rand(ComplexF64,D,D,D,D,2,2,2)
         verbose && println("random initial BCiPEPS $chkp_file")
     end
     bulk /= norm(bulk)
@@ -210,8 +195,8 @@ function optimiseipeps(bulk, key; f_tol = 1e-6, opiter = 100, verbose= false, op
     Ni, Nj = 1, 2
     to = TimerOutput()
     oc = optcont(D, χ)
-    f(x) = @timeit to "forward" real(energy(h, buildbcipeps(atype(x),Ni,Nj), oc, key; verbose=verbose))
-    ff(x) = real(energy(h, buildbcipeps(atype(x),Ni,Nj), oc, key; verbose=verbose))
+    f(x) = @timeit to "forward" real(energy(h, atype(x), oc, key; verbose=verbose))
+    ff(x) = real(energy(h, atype(x), oc, key; verbose=verbose))
     function g(x)
         @timeit to "backward" begin
             grad = Zygote.gradient(ff,atype(x))[1]
