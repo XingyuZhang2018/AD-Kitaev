@@ -6,6 +6,7 @@ using Optim
 using Printf: @sprintf
 using TimerOutputs
 using VUMPS
+using VUMPS: ALCtoAC
 using CUDA
 
 export init_ipeps, energy, optimiseipeps
@@ -59,13 +60,6 @@ function optcont(D::Int, χ::Int)
     oc1, oc2
 end
 
-function trans_to_arr_of_arr(A::AbstractArray{T,5}) where T
-    reshape([A[:,:,:,1,j] for j in 1:2],1,2)
-end
-
-function trans_to_arr_of_arr(A::AbstractArray{T,4}) where T
-    reshape([A[:,:,1,j] for j in 1:2],1,2)
-end
 
 """
     expectationvalue(h, ap, env)
@@ -79,9 +73,8 @@ function expectationvalue(h, ap, env, oc, key)
     _, _, field, atype, _, _, _, _, _ = key
     oc1, oc2 = oc
     Ni,Nj = size(ALu)[[4,5]]
-    ALu, Cu, ARu, ALd, Cd, ARd, FL, FR, FLu, FRu = map(trans_to_arr_of_arr, [ALu, Cu, ARu, ALd, Cd, ARd, FL, FR, FLu, FRu])
-    ACu = reshape([ein"asc,cb -> asb"(ALu[i],Cu[i]) for i=1:Ni*Nj],Ni,Nj)
-    ACd = reshape([ein"asc,cb -> asb"(ALd[i],Cd[i]) for i=1:Ni*Nj],Ni,Nj)
+    ACu = ALCtoAC(ALu, Cu)
+    ACd = ALCtoAC(ALd, Cd)
     hx, hy, hz = h
     ap /= norm(ap)
     etol = 0
@@ -92,30 +85,28 @@ function expectationvalue(h, ap, env, oc, key)
     end
 
     for j = 1:Nj, i = 1:Ni
-        ir = Ni + 1 - i
+        ir = i + 1 - (i==Ni) * Ni
         jr = j + 1 - (j==Nj) * Nj
-        lr = oc1(FL[i,j],ACu[i,j],ap[i,j],ACd[ir,j],FR[i,jr],ARu[i,jr],ap[i,jr],ARd[ir,jr])
-        ey = ein"pqrs, pqrs -> "(lr,hy)
-        n = ein"pprr -> "(lr)
-        println("hy = $(Array(ey)[]/Array(n)[])")
-        etol += Array(ey)[]/Array(n)[]
+        lr = oc1(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,jr],ARu[:,:,:,i,jr],ap[i,jr],ARd[:,:,:,ir,jr])
+        e = Array(ein"pqrs, pqrs -> "(lr,hz))[]
+        n =  Array(ein"pprr -> "(lr))[]
+        println("hz = $(e/n)")
+        etol += e/n
 
-        lr2 = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[i,j],ACu[i,j],ap[i,j],ACd[ir,j],FR[i,j])
-        ex = ein"pq, pq -> "(lr2,hx)
-        n = Array(ein"pp -> "(lr2))[]
-        println("hx = $(Array(ex)[]/n)")
-        etol += Array(ex)[]/n
+        lr = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,j])
+        e = Array(ein"pq, pq -> "(lr,hx))[]
+        n = Array(ein"pp -> "(lr))[]
+        println("hx = $(e/n)")
+        etol += e/n
+
+        irr = Ni==1 ? 1 : i + 2 - (i+2>Ni) * Ni
+        lr = oc2(ACu[:,:,:,i,j],FLu[:,:,:,i,j],ap[i,j],FRu[:,:,:,i,j],FL[:,:,:,ir,j],ap[ir,j],FR[:,:,:,ir,j],ACd[:,:,:,irr,j])
+        e = Array(ein"pqrs, pqrs -> "(lr,hy))[]
+        n =  Array(ein"pprr -> "(lr))[]
+        println("hy = $(e/n)")
+        etol += e/n
     end
     
-    for j = 1:Nj, i = 1:Ni
-        ir = i + 1 - Ni * (i==Ni)
-        lr3 = oc2(ACu[i,j],FLu[i,j],ap[i,j],FRu[i,j],FL[ir,j],ap[ir,j],FR[ir,j],ACd[i,j])
-        ez = ein"pqrs, pqrs -> "(lr3,hz)
-        n = ein"pprr -> "(lr3)
-        println("hz = $(Array(ez)[]/Array(n)[])") 
-        etol += Array(ez)[]/Array(n)[]
-    end
-
     if field != 0.0
         Sx1, Sx2, Sy1, Sy2, Sz1, Sz2 = [],[],[],[],[],[]
         Zygote.@ignore begin
@@ -127,8 +118,8 @@ function expectationvalue(h, ap, env, oc, key)
             Sz2 = reshape(ein"ab,cd -> acbd"(I(2), σz/2), (4,4))
         end
         for j = 1:Nj, i = 1:Ni
-            ir = Ni + 1 - i
-            lr3 = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[i,j],ACu[i,j],ap[i,j],ACd[ir,j],FR[i,j])
+            ir = i + 1 - (i==Ni) * Ni
+            lr3 = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,j])
             Mx1 = ein"pq, pq -> "(lr3,atype(Sx1))
             Mx2 = ein"pq, pq -> "(lr3,atype(Sx2))
             My1 = ein"pq, pq -> "(lr3,atype(Sy1))

@@ -3,7 +3,7 @@ using Statistics: std, cross
 
 export fidelity, observable
 
-function observable(model, fdirection, field, type, folder, atype, D, χ, tol, maxiter, miniter)
+function observable(model, fdirection, field, type, folder, atype, D, χ, tol, maxiter, miniter, Ni, Nj)
     if field == 0.0
         observable_log = folder*"$(model)/D$(D)_χ$(χ)_observable.log"
     else
@@ -18,15 +18,15 @@ function observable(model, fdirection, field, type, folder, atype, D, χ, tol, m
         folder, model, field, atype, D, χ, tol, maxiter, miniter = key
         h = hamiltonian(model)
         oc = optcont(D, χ)
-        Ni = 1
-        Nj = Int(size(bulk,6) / Ni)
         bulk = buildbcipeps(bulk,Ni,Nj)
         ap = [ein"abcdx,ijkly -> aibjckdlxy"(bulk[i], conj(bulk[i])) for i = 1:Ni*Nj]
-        ap = [reshape(ap[i], D^2, D^2, D^2, D^2, 4, 4) for i = 1:Ni*Nj]
+        ap = [atype(reshape(ap[i], D^2, D^2, D^2, D^2, 4, 4)) for i = 1:Ni*Nj]
         ap = reshape(ap, Ni, Nj)
-        a = [ein"ijklaa -> ijkl"(ap[i]) for i = 1:Ni*Nj]
-        a = reshape(a, Ni, Nj)
-        
+        a = atype(zeros(ComplexF64, D^2,D^2,D^2,D^2,Ni,Nj))
+        for j in 1:Nj, i in 1:Ni
+            a[:,:,:,:,i,j] = ein"ijklaa -> ijkl"(ap[i,j])
+        end
+
         chkp_file_obs = folder*"obs_D$(D^2)_χ$(χ).jld2"
         FL, FR = load(chkp_file_obs)["env"]
         chkp_file_up = folder*"up_D$(D^2)_χ$(χ).jld2"                     
@@ -38,6 +38,8 @@ function observable(model, fdirection, field, type, folder, atype, D, χ, tol, m
         ACu = ALCtoAC(ALu, Cu)
         ACd = ALCtoAC(ALd, Cd)
 
+        ALu, Cu, ACu, ARu, ALd, Cd, ACd, ARd, FL, FR, FLu, FRu = map(atype, [ALu, Cu, ACu, ARu, ALd, Cd, ACd, ARd, FL, FR, FLu, FRu])
+        
         M = Array{Array{ComplexF64,1},2}(undef, Nj, 2)
         Sx1 = reshape(ein"ab,cd -> acbd"(σx/2, I(2)), (4,4))
         Sx2 = reshape(ein"ab,cd -> acbd"(I(2), σx/2), (4,4))
@@ -48,8 +50,8 @@ function observable(model, fdirection, field, type, folder, atype, D, χ, tol, m
         etol = 0.0
         for j = 1:Nj, i = 1:Ni
             jr = j + 1 - (j==Nj)*Nj
-            ir = Ni + 1 - i
-            lr3 = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[i,j],ACu[i,j],ap[i,j],ACd[ir,j],FR[i,j])
+            ir = i + 1 - (i==Ni) * Ni
+            lr3 = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,j])
             Mx1 = ein"pq, pq -> "(Array(lr3),Sx1)
             Mx2 = ein"pq, pq -> "(Array(lr3),Sx2)
             My1 = ein"pq, pq -> "(Array(lr3),Sy1)
@@ -93,16 +95,16 @@ function observable(model, fdirection, field, type, folder, atype, D, χ, tol, m
         for j = 1:Nj, i = 1:Ni
             ir = Ni + 1 - i
             jr = j + 1 - (j==Nj) * Nj
-            lr = oc1(FL[i,j],ACu[i,j],ap[i,j],ACd[ir,j],FR[i,jr],ARu[i,jr],ap[i,jr],ARd[ir,jr])
-            ey = ein"pqrs, pqrs -> "(lr,hy)
-            n = ein"pprr -> "(lr)
+            lr = oc1(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,jr],ARu[:,:,:,i,jr],ap[i,jr],ARd[:,:,:,ir,jr])
+            ey = ein"pqrs, pqrs -> "(Array(lr),hy)
+            n = ein"pprr -> "(Array(lr))
             Ey += Array(ey)[]/Array(n)[]
             println("hy = $(Array(ey)[]/Array(n)[])")
             etol += Array(ey)[]/Array(n)[]
 
-            lr2 = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[i,j],ACu[i,j],ap[i,j],ACd[ir,j],FR[i,j])
-            ex = ein"pq, pq -> "(lr2,hx)
-            n = Array(ein"pp -> "(lr2))[]
+            lr2 = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,j])
+            ex = ein"pq, pq -> "(Array(lr2),hx)
+            n = Array(ein"pp -> "(Array(lr2)))[]
             Ex += Array(ex)[]/n
             println("hx = $(Array(ex)[]/n)")
             etol += Array(ex)[]/n
@@ -110,9 +112,9 @@ function observable(model, fdirection, field, type, folder, atype, D, χ, tol, m
         
         for j = 1:Nj, i = 1:Ni
             ir = i + 1 - Ni * (i==Ni)
-            lr3 = oc2(ACu[i,j],FLu[i,j],ap[i,j],FRu[i,j],FL[ir,j],ap[ir,j],FR[ir,j],ACd[i,j])
-            ez = ein"pqrs, pqrs -> "(lr3,hz)
-            n = ein"pprr -> "(lr3)
+            lr3 = oc2(ACu[:,:,:,i,j],FLu[:,:,:,i,j],ap[i,j],FRu[:,:,:,i,j],FL[:,:,:,ir,j],ap[ir,j],FR[:,:,:,ir,j],ACd[:,:,:,i,j])
+            ez = ein"pqrs, pqrs -> "(Array(lr3),hz)
+            n = ein"pprr -> "(Array(lr3))
             Ez += Array(ez)[]/Array(n)[]
             println("hz = $(Array(ez)[]/Array(n)[])") 
             etol += Array(ez)[]/Array(n)[]
