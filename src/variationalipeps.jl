@@ -85,7 +85,8 @@ function expectationvalue(h, ap, env, oc, key)
     end
 
     for j = 1:Nj, i = 1:Ni
-        ir = i + 1 - (i==Ni) * Ni
+        println("===========$i,$j===========")
+        ir = Ni + 1 - i
         jr = j + 1 - (j==Nj) * Nj
         lr = oc1(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,jr],ARu[:,:,:,i,jr],ap[i,jr],ARd[:,:,:,ir,jr])
         e = Array(ein"pqrs, pqrs -> "(lr,hz))[]
@@ -99,7 +100,8 @@ function expectationvalue(h, ap, env, oc, key)
         println("hx = $(e/n)")
         etol += e/n
 
-        irr = Ni==1 ? 1 : i + 2 - (i+2>Ni) * Ni
+        ir  =  i + 1 - (i==Ni) * Ni
+        irr = Ni - i + (i==Ni) * Ni
         lr = oc2(ACu[:,:,:,i,j],FLu[:,:,:,i,j],ap[i,j],FRu[:,:,:,i,j],FL[:,:,:,ir,j],ap[ir,j],FR[:,:,:,ir,j],ACd[:,:,:,irr,j])
         e = Array(ein"pqrs, pqrs -> "(lr,hy))[]
         n =  Array(ein"pprr -> "(lr))[]
@@ -118,7 +120,7 @@ function expectationvalue(h, ap, env, oc, key)
             Sz2 = reshape(ein"ab,cd -> acbd"(I(2), σz/2), (4,4))
         end
         for j = 1:Nj, i = 1:Ni
-            ir = i + 1 - (i==Ni) * Ni
+            ir = Ni + 1 - i
             lr3 = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,j])
             Mx1 = ein"pq, pq -> "(lr3,atype(Sx1))
             Mx2 = ein"pq, pq -> "(lr3,atype(Sx2))
