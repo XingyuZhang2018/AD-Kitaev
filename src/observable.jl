@@ -5,17 +5,17 @@ export fidelity, observable
 
 function observable(model, fdirection, field, type, folder, atype, D, χ, tol, maxiter, miniter, Ni, Nj)
     if field == 0.0
-        observable_log = folder*"$(model)/D$(D)_χ$(χ)_observable.log"
+        observable_log = folder*"$(Ni)x$(Nj)/$(model)/D$(D)_χ$(χ)_observable.log"
     else
-        observable_log = folder*"$(model)_field$(fdirection)_$(@sprintf("%0.2f", field))$(type)/D$(D)_χ$(χ)_observable.log"
+        observable_log = folder*"$(Ni)x$(Nj)/$(model)_field$(fdirection)_$(@sprintf("%0.2f", field))$(type)/D$(D)_χ$(χ)_observable.log"
     end
     if isfile(observable_log)
         println("load observable from $(observable_log)")
         f = open(observable_log, "r" )
         mag, ferro, stripy, zigzag, Neel, etol, ΔE, Cross = parse.(Float64,split(readline(f), "   "))
     else
-        bulk, key = init_ipeps(model, fdirection, field; folder = folder, type = type, atype = atype, D=D, χ=χ, tol=tol, maxiter=maxiter, miniter=miniter, verbose = true)
-        folder, model, field, atype, D, χ, tol, maxiter, miniter = key
+        bulk, key = init_ipeps(model, fdirection, field; folder = folder, type = type, atype = atype, Ni = Ni, Nj = Nj, D=D, χ=χ, tol=tol, maxiter=maxiter, miniter=miniter, verbose = true)
+        folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter, miniter = key
         h = hamiltonian(model)
         oc = optcont(D, χ)
         bulk = buildbcipeps(bulk,Ni,Nj)
@@ -61,12 +61,12 @@ function observable(model, fdirection, field, type, folder, atype, D, χ, tol, m
             n3 = ein"pp -> "(lr3)
             M[j,1] = [Array(Mx1)[]/Array(n3)[], Array(My1)[]/Array(n3)[], Array(Mz1)[]/Array(n3)[]]
             M[j,2] = [Array(Mx2)[]/Array(n3)[], Array(My2)[]/Array(n3)[], Array(Mz2)[]/Array(n3)[]]
-            print("M[[$(j),$(1)]] = {")
+            print("M[[$(i),$(j),$(1)]] = {")
             for k = 1:3 
                 print(real(M[j,1][k])) 
                 k == 3 ? println("};") : print(",")
             end
-            print("M[[$(j),$(2)]] = {")
+            print("M[[$(i),$(j),$(2)]] = {")
             for k = 1:3 
                 print(real(M[j,2][k])) 
                 k == 3 ? println("};") : print(",")
@@ -87,37 +87,37 @@ function observable(model, fdirection, field, type, folder, atype, D, χ, tol, m
         oc1, oc2 = oc
         hx, hy, hz = h
         ap /= norm(ap)
-        hx = reshape(permutedims(hx, (1,3,2,4)), (4,4))
-        hy = reshape(ein"(ae,bfcg),dh -> abefcdgh"(I(2), hy, I(2)), (4,4,4,4))
-        hz = reshape(ein"(ae,bfcg),dh -> abefcdgh"(I(2), hz, I(2)), (4,4,4,4))
+        hx = atype(reshape(permutedims(hx, (1,3,2,4)), (4,4)))
+        hy = atype(reshape(ein"ae,bfcg,dh -> abefcdgh"(I(2), hy, I(2)), (4,4,4,4)))
+        hz = atype(reshape(ein"ae,bfcg,dh -> abefcdgh"(I(2), hz, I(2)), (4,4,4,4)))
 
         Ex, Ey, Ez = 0, 0, 0
         for j = 1:Nj, i = 1:Ni
+            println("===========$i,$j===========")
             ir = Ni + 1 - i
             jr = j + 1 - (j==Nj) * Nj
             lr = oc1(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,jr],ARu[:,:,:,i,jr],ap[i,jr],ARd[:,:,:,ir,jr])
-            ey = ein"pqrs, pqrs -> "(Array(lr),hy)
-            n = ein"pprr -> "(Array(lr))
-            Ey += Array(ey)[]/Array(n)[]
-            println("hy = $(Array(ey)[]/Array(n)[])")
-            etol += Array(ey)[]/Array(n)[]
+            e = Array(ein"pqrs, pqrs -> "(lr,hz))[]
+            n =  Array(ein"pprr -> "(lr))[]
+            println("hz = $(e/n)")
+            Ez   += e/n
+            etol += e/n
 
-            lr2 = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,j])
-            ex = ein"pq, pq -> "(Array(lr2),hx)
-            n = Array(ein"pp -> "(Array(lr2)))[]
-            Ex += Array(ex)[]/n
-            println("hx = $(Array(ex)[]/n)")
-            etol += Array(ex)[]/n
-        end
-        
-        for j = 1:Nj, i = 1:Ni
-            ir = i + 1 - Ni * (i==Ni)
-            lr3 = oc2(ACu[:,:,:,i,j],FLu[:,:,:,i,j],ap[i,j],FRu[:,:,:,i,j],FL[:,:,:,ir,j],ap[ir,j],FR[:,:,:,ir,j],ACd[:,:,:,i,j])
-            ez = ein"pqrs, pqrs -> "(Array(lr3),hz)
-            n = ein"pprr -> "(Array(lr3))
-            Ez += Array(ez)[]/Array(n)[]
-            println("hz = $(Array(ez)[]/Array(n)[])") 
-            etol += Array(ez)[]/Array(n)[]
+            lr = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,j])
+            e = Array(ein"pq, pq -> "(lr,hx))[]
+            n = Array(ein"pp -> "(lr))[]
+            println("hx = $(e/n)")
+            Ex   += e/n
+            etol += e/n
+
+            ir  =  i + 1 - (i==Ni) * Ni
+            irr = Ni - i + (i==Ni) * Ni
+            lr = oc2(ACu[:,:,:,i,j],FLu[:,:,:,i,j],ap[i,j],FRu[:,:,:,i,j],FL[:,:,:,ir,j],ap[ir,j],FR[:,:,:,ir,j],ACd[:,:,:,irr,j])
+            e = Array(ein"pqrs, pqrs -> "(lr,hy))[]
+            n =  Array(ein"pprr -> "(lr))[]
+            println("hy = $(e/n)")
+            Ey   += e/n
+            etol += e/n
         end
         println("e = $(etol/Ni/Nj)")
         etol = real(etol/(Ni * Nj))

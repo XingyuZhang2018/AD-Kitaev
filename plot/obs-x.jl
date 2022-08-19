@@ -5,8 +5,8 @@ using Printf: @sprintf
 using Random
 
 Random.seed!(100)
-folder, atype, D, χ, tol, maxiter, miniter, Ni, Nj = "E:/1 - research/4.9 - AutoDiff/data/ADBCVUMPS/K_J_Γ_Γ′_1x2/", Array, 3, 20, 1e-10, 10, 1, 1, 2
-f = [0.05]
+folder, atype, D, χ, tol, maxiter, miniter, Ni, Nj = "/data/xyzhang/ADBCVUMPS/", CuArray, 5, 100, 1e-10, 10, 1, 1, 2
+f = 0.10:0.01:0.20
 fdirection = [1.0, 1.0, 1.0]
 # 0.985263
 # 0.963424
@@ -17,7 +17,7 @@ for x in f
     @show x
     model = K_J_Γ_Γ′(-1.0, -0.1, 0.3, -0.02)
     if x == 0.0
-        tfolder = folder*"$(model)/"
+        tfolder = folder*"$(Ni)x$(Nj)/$(model)/"
     else
         # if x > 0.13
         #     type = "_random"
@@ -25,21 +25,23 @@ for x in f
         #     type = "_zigzag"
         # end
         # type = ""
-        tfolder = folder*"$(model)_field$(fdirection)_$(@sprintf("%0.2f", x))$(type)/"
+        tfolder = folder*"$(Ni)x$(Nj)/$(model)_field$(fdirection)_$(@sprintf("%0.2f", x))$(type)/"
     end
     if isdir(tfolder)
         y1, y2, y3, y4, y5, y6, y7, y8 = observable(model, fdirection, x, "$(type)", folder, atype, D, χ, tol, maxiter, miniter, Ni, Nj)
-        field = [field; x]
-        mag = [mag; y1]
-        ferro = [ferro; y2]
-        stripy = [stripy; y3]
-        zigzag = [zigzag; y4]
-        Neel = [Neel; y5]
-        E = [E; y6]
-        ΔE = [ΔE; y7]
-        Cross = [Cross; y8]
+        # field = [field; x]
+        # mag = [mag; y1]
+        # ferro = [ferro; y2]
+        # stripy = [stripy; y3]
+        # zigzag = [zigzag; y4]
+        # Neel = [Neel; y5]
+        # E = [E; y6]
+        global ΔE = [ΔE; y7]
+        # Cross = [Cross; y8]
     end
 end
+
+@show ΔE
 
 # magplot = plot()
 # # plot!(magplot, field, mag, shape = :auto, title = "mag-h", label = "mag D = $(D)", lw = 2)

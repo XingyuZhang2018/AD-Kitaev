@@ -18,9 +18,8 @@ return the energy of the `bcipeps` 2-site hamiltonian `h` and calculated via a
 BCVUMPS with parameters `χ`, `tol` and `maxiter`.
 """
 function energy(h, bulk, oc, key; verbose = true, savefile = true)
-    folder, _, _, atype, D, χ, tol, maxiter, miniter = key
+    folder, _, _, atype, Ni, Nj, D, χ, tol, maxiter, miniter = key
     # bcipeps = indexperm_symmetrize(bcipeps)  # NOTE: this is not good
-    Ni,Nj = size(bulk)
     ap = [ein"abcdx,ijkly -> aibjckdlxy"(bulk[i], conj(bulk[i])) for i = 1:Ni*Nj]
     ap = [reshape(ap[i], D^2, D^2, D^2, D^2, 4, 4) for i = 1:Ni*Nj]
     ap = reshape(ap, Ni, Nj)
@@ -31,7 +30,7 @@ function energy(h, bulk, oc, key; verbose = true, savefile = true)
     end
     a = copy(a)
 
-    env = obs_env(a; χ = χ, tol = tol, maxiter = maxiter, miniter = miniter, verbose = verbose, savefile = savefile, infolder = folder, outfolder = folder)
+    env = obs_env(a; χ = χ, tol = tol, maxiter = maxiter, miniter = miniter, verbose = verbose, savefile = savefile, infolder = folder, outfolder = folder, savetol = 1e-4)
     e = expectationvalue(h, ap, env, oc, key)
     return e
 end
@@ -70,9 +69,8 @@ a `SquareBCVUMPSRuntime` `env`.
 """
 function expectationvalue(h, ap, env, oc, key)
     _, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR, FLu, FRu = env
-    _, _, field, atype, _, _, _, _, _ = key
+    _, _, field, atype, Ni, Nj, _, _, _, _, _ = key
     oc1, oc2 = oc
-    Ni,Nj = size(ALu)[[4,5]]
     ACu = ALCtoAC(ALu, Cu)
     ACd = ALCtoAC(ALd, Cd)
     hx, hy, hz = h
@@ -165,11 +163,11 @@ end
 Initial `bcipeps` and give `key` for use of later optimization. The key include `model`, `D`, `χ`, `tol` and `maxiter`. 
 The iPEPS is random initial if there isn't any calculation before, otherwise will be load from file `/data/model_D_chi_tol_maxiter.jld2`
 """
-function init_ipeps(model::HamiltonianModel, fdirection::Vector{Float64} = [0.0,0.0,0.0], field::Float64 = 0.0; folder::String="./data/", type::String = "", atype = Array, D::Int, χ::Int, tol::Real, maxiter::Int, miniter::Int, verbose = true)
+function init_ipeps(model::HamiltonianModel, fdirection::Vector{Float64} = [0.0,0.0,0.0], field::Float64 = 0.0; folder::String="./data/", type::String = "", atype = Array, Ni::Int, Nj::Int, D::Int, χ::Int, tol::Real, maxiter::Int, miniter::Int, verbose = true)
     if field == 0.0
-        folder *= "$(model)/"
+        folder *= "$(Ni)x$(Nj)/$(model)/"
     else
-        folder *= "$(model)_field$(fdirection)_$(@sprintf("%0.2f", field))$(type)/"
+        folder *= "$(Ni)x$(Nj)/$(model)_field$(fdirection)_$(@sprintf("%0.2f", field))$(type)/"
         field = field * fdirection / norm(fdirection)
     end
     mkpath(folder)
@@ -178,11 +176,11 @@ function init_ipeps(model::HamiltonianModel, fdirection::Vector{Float64} = [0.0,
         bulk = load(chkp_file)["bcipeps"]
         verbose && println("load BCiPEPS from $chkp_file")
     else
-        bulk = rand(ComplexF64,D,D,D,D,4,2)
+        bulk = rand(ComplexF64,D,D,D,D,4,Ni*Nj)
         verbose && println("random initial BCiPEPS $chkp_file")
     end
     bulk /= norm(bulk)
-    key = (folder, model, field, atype, D, χ, tol, maxiter, miniter)
+    key = (folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter, miniter)
     return bulk, key
 end
 
@@ -196,11 +194,8 @@ providing `optimmethod`. Other options to optim can be passed with `optimargs`.
 The energy is calculated using vumps with key include parameters `χ`, `tol` and `maxiter`.
 """
 function optimiseipeps(bulk, key; f_tol = 1e-6, opiter = 100, verbose= false, optimmethod = LBFGS(m = 20))
-    _, model, _, atype, D, χ, _, _, _ = key
-    # h = atype(hamiltonian(model))
+    _, model, _, atype, Ni, Nj, D, χ, _, _, _ = key
     h = hamiltonian(model)
-    # h = (atype(hx),atype(hy),atype(hz))
-    Ni, Nj = 1, 2
     to = TimerOutput()
     oc = optcont(D, χ)
     f(x) = @timeit to "forward" real(energy(h, buildbcipeps(atype(x),Ni,Nj), oc, key; verbose=verbose))
@@ -235,7 +230,7 @@ function writelog(os::OptimizationState, key=nothing)
     printstyled(message; bold=true, color=:red)
     flush(stdout)
 
-    folder, model, field, atype, D, χ, tol, maxiter, miniter = key
+    folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter, miniter = key
     if !(key === nothing)
         logfile = open(folder*"D$(D)_chi$(χ)_tol$(tol)_maxiter$(maxiter)_miniter$(miniter).log", "a")
         write(logfile, message)
