@@ -50,7 +50,7 @@ function observable(model, fdirection, field, type, folder, atype, D, χ, tol, m
         etol = 0.0
         for j = 1:Nj, i = 1:Ni
             jr = j + 1 - (j==Nj)*Nj
-            ir = i + 1 - (i==Ni) * Ni
+            ir = Ni + 1 - i
             lr3 = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,j])
             Mx1 = ein"pq, pq -> "(Array(lr3),Sx1)
             Mx2 = ein"pq, pq -> "(Array(lr3),Sx2)

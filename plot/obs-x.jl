@@ -5,8 +5,8 @@ using Printf: @sprintf
 using Random
 
 Random.seed!(100)
-folder, atype, D, χ, tol, maxiter, miniter, Ni, Nj = "/data/xyzhang/ADBCVUMPS/", CuArray, 5, 100, 1e-10, 10, 1, 1, 2
-f = 0.10:0.01:0.20
+folder, atype, D, χ, tol, maxiter, miniter, Ni, Nj = "/data/xyzhang/ADBCVUMPS/", CuArray, 4, 80, 1e-10, 10, 1, 3, 3
+f = [0.0]
 fdirection = [1.0, 1.0, 1.0]
 # 0.985263
 # 0.963424
@@ -15,7 +15,7 @@ type = "_zigzag"
 field, mag, ferro, stripy, zigzag, Neel, E, ΔE, Cross = [], [], [], [], [], [], [], [], []
 for x in f
     @show x
-    model = K_J_Γ_Γ′(-1.0, -0.1, 0.3, -0.02)
+    model = K_J_Γ_Γ′(-1.0, -0.0, 1.0, -0.0)
     if x == 0.0
         tfolder = folder*"$(Ni)x$(Nj)/$(model)/"
     else
