@@ -10,7 +10,7 @@ CUDA.allowscalar(false)
 
 Random.seed!(100)
 folder = "/data/xyzhang/ADBCVUMPS/"
-bulk, key = init_ipeps(K_J_Γ_Γ′(-1.0, -0.0, 1.0, -0.0), [1.0,1.0,1.0], 0.00;folder=folder, type = "_random", atype = CuArray, Ni = 3, Nj = 3, D=4, χ=80, tol=1e-10, maxiter=10, miniter=1)
+bulk, key = init_ipeps(K_J_Γ_Γ′(-1.0, -0.1, 0.3, -0.02), [1.0,1.0,-2.0], 0.02;folder=folder, type = "_zigzag", atype = CuArray, Ni = 1, Nj = 2, D=4, χ=80, tol=1e-10, maxiter=10, miniter=1)
 folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter, miniter = key
 key = (folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter, miniter)
 h = hamiltonian(model)

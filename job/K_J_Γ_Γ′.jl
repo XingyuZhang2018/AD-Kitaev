@@ -1,6 +1,6 @@
 using ADBCVUMPS
 using ArgParse
-using VUMPS
+using TeneT
 using CUDA
 using Random
 using Test

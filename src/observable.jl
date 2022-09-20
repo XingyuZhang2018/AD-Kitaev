@@ -1,15 +1,15 @@
-using VUMPS: ALCtoAC
+using TeneT: ALCtoAC
 using Statistics: std, cross
-
+using LinearAlgebra: dot
 export fidelity, observable
 
-function observable(model, fdirection, field, type, folder, atype, D, χ, tol, maxiter, miniter, Ni, Nj)
+function observable(model, fdirection, field, type, folder, atype, D, χ, tol, maxiter, miniter, Ni, Nj; ifload = false)
     if field == 0.0
         observable_log = folder*"$(Ni)x$(Nj)/$(model)/D$(D)_χ$(χ)_observable.log"
     else
         observable_log = folder*"$(Ni)x$(Nj)/$(model)_field$(fdirection)_$(@sprintf("%0.2f", field))$(type)/D$(D)_χ$(χ)_observable.log"
     end
-    if isfile(observable_log)
+    if isfile(observable_log) && ifload
         println("load observable from $(observable_log)")
         f = open(observable_log, "r" )
         mag, ferro, stripy, zigzag, Neel, etol, ΔE, Cross = parse.(Float64,split(readline(f), "   "))
@@ -76,7 +76,8 @@ function observable(model, fdirection, field, type, folder, atype, D, χ, tol, m
             end
             # println("M = $(sqrt(real(M[i,j]' * M[i,j])))")
         end
-        Cross = norm(cross(M[1,1],M[1,2]))
+        Cross = norm(cross(M[1,1],M[2,1]))
+        angle = acos(real(dot(M[1,1],M[2,1])/(norm(M[1,1])*norm(M[2,1]))))/pi*180
         @show Cross
         mag = (norm(M[1,1]) + norm(M[2,1]) + norm(M[2,2]) + norm(M[1,2]))/4
         ferro = norm((M[1,1] + M[1,2] + M[2,2] + M[2,1])/4)
@@ -125,12 +126,12 @@ function observable(model, fdirection, field, type, folder, atype, D, χ, tol, m
         ΔE = std(real.([Ex, Ey, Ez]))
         @show ΔE
 
-        message = "$(mag)   $(ferro)   $(stripy)   $(zigzag)   $(Neel)   $(etol)   $(ΔE)   $(Cross)\n"
-        logfile = open(observable_log, "a")
+        message = "mag   = $(mag)\nferro = $(ferro)\nstripy= $(stripy)\nzigzag= $(zigzag)\nNeel  = $(Neel)\netol  = $(etol)\nΔE    = $(ΔE)\nCross = $(Cross)\nangle = $(angle)\n"
+        logfile = open(observable_log, "w")
         write(logfile, message)
         close(logfile)
     end
-    return mag, ferro, stripy, zigzag, Neel, etol, ΔE, Cross
+    return mag, ferro, stripy, zigzag, Neel, etol, ΔE, Cross, angle
 end
 
 function fidelity(key1,key2)
