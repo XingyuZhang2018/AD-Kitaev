@@ -5,8 +5,8 @@ using OMEinsum: get_size_dict, optimize_greedy,  MinSpaceDiff
 using Optim
 using Printf: @sprintf
 using TimerOutputs
-using VUMPS
-using VUMPS: ALCtoAC
+using TeneT
+using TeneT: ALCtoAC
 using CUDA
 
 export init_ipeps, energy, optimiseipeps
@@ -30,7 +30,7 @@ function energy(h, bulk, oc, key; verbose = true, savefile = true)
     end
     a = copy(a)
 
-    env = obs_env(a; χ = χ, tol = tol, maxiter = maxiter, miniter = miniter, verbose = verbose, savefile = savefile, infolder = folder, outfolder = folder, savetol = 1e-4)
+    env = obs_env(a; χ = χ, tol = tol, maxiter = maxiter, miniter = miniter, verbose = verbose, savefile = savefile, infolder = folder, outfolder = folder, savetol = 1e-3)
     e = expectationvalue(h, ap, env, oc, key)
     return e
 end

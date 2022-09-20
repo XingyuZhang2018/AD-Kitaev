@@ -19,8 +19,8 @@ Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+TeneT = "260a78e0-cbf2-49ba-8157-48058c700f32"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
-VUMPS = "260a78e0-cbf2-49ba-8157-48058c700f32"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]

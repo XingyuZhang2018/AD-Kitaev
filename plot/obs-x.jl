@@ -5,17 +5,17 @@ using Printf: @sprintf
 using Random
 
 Random.seed!(100)
-folder, atype, D, χ, tol, maxiter, miniter, Ni, Nj = "/data/xyzhang/ADBCVUMPS/", CuArray, 4, 80, 1e-10, 10, 1, 3, 3
+folder, atype, D, χ, tol, maxiter, miniter, Ni, Nj = "/data/xyzhang/ADBCVUMPS/", CuArray, 5, 100, 1e-10, 10, 1, 1, 2
 f = [0.0]
 fdirection = [1.0, 1.0, 1.0]
 # 0.985263
 # 0.963424
 # 0.825221
 type = "_zigzag"
-field, mag, ferro, stripy, zigzag, Neel, E, ΔE, Cross = [], [], [], [], [], [], [], [], []
+field, mag, ferro, stripy, zigzag, Neel, E, ΔE, Cross, angle = [], [], [], [], [], [], [], [], [], []
 for x in f
     @show x
-    model = K_J_Γ_Γ′(-1.0, -0.0, 1.0, -0.0)
+    model = K_J_Γ_Γ′(-1.0, -0.1, 0.3, -0.02)
     if x == 0.0
         tfolder = folder*"$(Ni)x$(Nj)/$(model)/"
     else
@@ -27,22 +27,28 @@ for x in f
         # type = ""
         tfolder = folder*"$(Ni)x$(Nj)/$(model)_field$(fdirection)_$(@sprintf("%0.2f", x))$(type)/"
     end
+    @show isdir(tfolder)
     if isdir(tfolder)
-        y1, y2, y3, y4, y5, y6, y7, y8 = observable(model, fdirection, x, "$(type)", folder, atype, D, χ, tol, maxiter, miniter, Ni, Nj)
-        # field = [field; x]
-        # mag = [mag; y1]
-        # ferro = [ferro; y2]
-        # stripy = [stripy; y3]
-        # zigzag = [zigzag; y4]
-        # Neel = [Neel; y5]
-        # E = [E; y6]
+        y1, y2, y3, y4, y5, y6, y7, y8, y9 = observable(model, fdirection, x, "$(type)", folder, atype, D, χ, tol, maxiter, miniter, Ni, Nj)
+        global field = [field; x]
+        global mag = [mag; y1]
+        global ferro = [ferro; y2]
+        global stripy = [stripy; y3]
+        global zigzag = [zigzag; y4]
+        global Neel = [Neel; y5]
+        global E = [E; y6]
         global ΔE = [ΔE; y7]
-        # Cross = [Cross; y8]
+        global Cross = [Cross; y8]
+        global angle = [angle; y9]
     end
 end
 
-@show ΔE
-
+@show field mag ferro stripy zigzag Neel E ΔE Cross angle
+print("{")
+for i in 1:length(field)
+    print("{$(field[i]),$(ferro[i])},")
+end
+print("}")
 # magplot = plot()
 # # plot!(magplot, field, mag, shape = :auto, title = "mag-h", label = "mag D = $(D)", lw = 2)
 # plot!(magplot, field, ferro, shape = :auto, label = "0.4° mag D = $(D)", lw = 2)
