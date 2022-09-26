@@ -40,7 +40,7 @@ function observable(model, fdirection, field, type, folder, atype, D, χ, tol, m
 
         ALu, Cu, ACu, ARu, ALd, Cd, ACd, ARd, FL, FR, FLu, FRu = map(atype, [ALu, Cu, ACu, ARu, ALd, Cd, ACd, ARd, FL, FR, FLu, FRu])
         
-        M = Array{Array{ComplexF64,1},2}(undef, Nj, 2)
+        M = Array{Array{ComplexF64,1},3}(undef, Ni, Nj, 2)
         Sx1 = reshape(ein"ab,cd -> acbd"(σx/2, I(2)), (4,4))
         Sx2 = reshape(ein"ab,cd -> acbd"(I(2), σx/2), (4,4))
         Sy1 = reshape(ein"ab,cd -> acbd"(σy/2, I(2)), (4,4))
@@ -48,6 +48,7 @@ function observable(model, fdirection, field, type, folder, atype, D, χ, tol, m
         Sz1 = reshape(ein"ab,cd -> acbd"(σz/2, I(2)), (4,4))
         Sz2 = reshape(ein"ab,cd -> acbd"(I(2), σz/2), (4,4))
         etol = 0.0
+        logfile = open(observable_log, "a")
         for j = 1:Nj, i = 1:Ni
             jr = j + 1 - (j==Nj)*Nj
             ir = Ni + 1 - i
@@ -59,31 +60,24 @@ function observable(model, fdirection, field, type, folder, atype, D, χ, tol, m
             Mz1 = ein"pq, pq -> "(Array(lr3),Sz1)
             Mz2 = ein"pq, pq -> "(Array(lr3),Sz2)
             n3 = ein"pp -> "(lr3)
-            M[j,1] = [Array(Mx1)[]/Array(n3)[], Array(My1)[]/Array(n3)[], Array(Mz1)[]/Array(n3)[]]
-            M[j,2] = [Array(Mx2)[]/Array(n3)[], Array(My2)[]/Array(n3)[], Array(Mz2)[]/Array(n3)[]]
+            M[i,j,1] = [Array(Mx1)[]/Array(n3)[], Array(My1)[]/Array(n3)[], Array(Mz1)[]/Array(n3)[]]
+            M[i,j,2] = [Array(Mx2)[]/Array(n3)[], Array(My2)[]/Array(n3)[], Array(Mz2)[]/Array(n3)[]]
             print("M[[$(i),$(j),$(1)]] = {")
             for k = 1:3 
-                print(real(M[j,1][k])) 
+                print(real(M[i,j,1][k])) 
                 k == 3 ? println("};") : print(",")
             end
             print("M[[$(i),$(j),$(2)]] = {")
             for k = 1:3 
-                print(real(M[j,2][k])) 
+                print(real(M[i,j,2][k])) 
                 k == 3 ? println("};") : print(",")
             end
             if field != 0.0
-                etol -= (real(M[j,1] + M[j,2]))' * field / 2
+                etol -= (real(M[i,j,1] + M[i,j,2]))' * field / 2
             end
-            # println("M = $(sqrt(real(M[i,j]' * M[i,j])))")
+            message = "M[[$(i),$(j),$(1)]] = $(M[i,j,1])\nM[[$(i),$(j),$(2)]] = $(M[i,j,2])\n"
+            write(logfile, message)
         end
-        Cross = norm(cross(M[1,1],M[2,1]))
-        angle = acos(real(dot(M[1,1],M[2,1])/(norm(M[1,1])*norm(M[2,1]))))/pi*180
-        @show Cross
-        mag = (norm(M[1,1]) + norm(M[2,1]) + norm(M[2,2]) + norm(M[1,2]))/4
-        ferro = norm((M[1,1] + M[1,2] + M[2,2] + M[2,1])/4)
-        zigzag = norm((M[1,1] + M[1,2] - M[2,2] - M[2,1])/4)
-        stripy = norm((M[1,1] - M[1,2] + M[2,2] - M[2,1])/4)
-        Neel = norm((M[1,1] - M[1,2] - M[2,2] + M[2,1])/4)
 
         oc1, oc2 = oc
         hx, hy, hz = h
@@ -123,15 +117,12 @@ function observable(model, fdirection, field, type, folder, atype, D, χ, tol, m
         println("e = $(etol/Ni/Nj)")
         etol = real(etol/(Ni * Nj))
         # ΔE = real(Ex - (Ey + Ez)/2)
-        ΔE = std(real.([Ex, Ey, Ez]))
-        @show ΔE
 
-        message = "mag   = $(mag)\nferro = $(ferro)\nstripy= $(stripy)\nzigzag= $(zigzag)\nNeel  = $(Neel)\netol  = $(etol)\nΔE    = $(ΔE)\nCross = $(Cross)\nangle = $(angle)\n"
-        logfile = open(observable_log, "w")
+        message = "E     = $(etol)\nEx    = $(Ex)\nEy    = $(Ey)\nEz    = $(Ez)\n"
         write(logfile, message)
         close(logfile)
     end
-    return mag, ferro, stripy, zigzag, Neel, etol, ΔE, Cross, angle
+    return etol, Ex, Ey, Ez, M
 end
 
 function fidelity(key1,key2)

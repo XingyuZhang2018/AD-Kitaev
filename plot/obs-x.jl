@@ -5,17 +5,23 @@ using Printf: @sprintf
 using Random
 
 Random.seed!(100)
-folder, atype, D, χ, tol, maxiter, miniter, Ni, Nj = "/data/xyzhang/ADBCVUMPS/", CuArray, 5, 100, 1e-10, 10, 1, 1, 2
-f = [0.0]
-fdirection = [1.0, 1.0, 1.0]
+folder  = "/data/xyzhang/ADBCVUMPS/"
+atype   = CuArray
+D, χ    = 4, 80
+tol     = 1e-10
+maxiter = 10
+miniter = 1
+Ni, Nj  = 4, 4
+f       = 0.0:0.1:0.0
+fdirect = [1.0, 1.0, 1.0]
+model   = K_J_Γ_Γ′(-1.0, -0.1, 0.3, -0.02)
 # 0.985263
 # 0.963424
 # 0.825221
-type = "_zigzag"
-field, mag, ferro, stripy, zigzag, Neel, E, ΔE, Cross, angle = [], [], [], [], [], [], [], [], [], []
+type = "_random"
+E, Ex, Ey, Ez, M = [], [], [], [], [], [], [], [], [], []
 for x in f
     @show x
-    model = K_J_Γ_Γ′(-1.0, -0.1, 0.3, -0.02)
     if x == 0.0
         tfolder = folder*"$(Ni)x$(Nj)/$(model)/"
     else
@@ -25,73 +31,20 @@ for x in f
         #     type = "_zigzag"
         # end
         # type = ""
-        tfolder = folder*"$(Ni)x$(Nj)/$(model)_field$(fdirection)_$(@sprintf("%0.2f", x))$(type)/"
+        tfolder = folder*"$(Ni)x$(Nj)/$(model)_field$(fdirect)_$(@sprintf("%0.2f", x))$(type)/"
     end
     @show isdir(tfolder)
     if isdir(tfolder)
-        y1, y2, y3, y4, y5, y6, y7, y8, y9 = observable(model, fdirection, x, "$(type)", folder, atype, D, χ, tol, maxiter, miniter, Ni, Nj)
-        global field = [field; x]
-        global mag = [mag; y1]
-        global ferro = [ferro; y2]
-        global stripy = [stripy; y3]
-        global zigzag = [zigzag; y4]
-        global Neel = [Neel; y5]
-        global E = [E; y6]
-        global ΔE = [ΔE; y7]
-        global Cross = [Cross; y8]
-        global angle = [angle; y9]
+        y1, y2, y3, y4, y5 = observable(model, fdirect, x, "$(type)", folder, atype, D, χ, tol, maxiter, miniter, Ni, Nj)
+
+        global E  = [E;  y1]
+        global Ey = [Ey; y2]
+        global Ey = [Ey; y3]
+        global Ez = [Ez; y4]
+        global M  = [M;  y5]
     end
 end
 
-@show field mag ferro stripy zigzag Neel E ΔE Cross angle
-print("{")
-for i in 1:length(field)
-    print("{$(field[i]),$(ferro[i])},")
-end
-print("}")
-# magplot = plot()
-# # plot!(magplot, field, mag, shape = :auto, title = "mag-h", label = "mag D = $(D)", lw = 2)
-# plot!(magplot, field, ferro, shape = :auto, label = "0.4° mag D = $(D)", lw = 2)
-# # plot!(magplot, field, stripy, shape = :auto, label = "stripy D = $(D)", lw = 2)
-# # plot!(magplot, field, Neel, shape = :auto, label = "Neel D = $(D)", lw = 2)
-# # plot!(magplot, field, zigzag, shape = :auto, label = "zigzag D = $(D)",legend = :outertop, xlabel = "h", ylabel = "Order Parameters", lw = 2)
-# dferro = deriv_y(field, ferro)*1.5
-# plot!(magplot, field, dferro, shape = :auto, label = "0.4° ∂mag D = $(D)", lw = 2)
-# X,Y = read_xy(folder*"2021WeiLi-mag.log")
-# plot!(magplot, X/187.782, Y, shape = :auto, label = "2021WeiLi-mag", lw = 2, rightmargin = 2.5Plots.cm)
-# dmag = deriv_y(X/187.782, Y)/2
-# plot!(magplot, X/187.782, dmag, shape = :auto, label = "2021WeiLi-dmag", lw = 2, rightmargin = 2.5Plots.cm)
-# # X,Y = read_xy(folder*"2019Gordon-dmag.log")
-# # # plot!(magplot, X, Y, shape = :auto, label = "2019Gordon 5° dmag",legend = :topright, xlabel = "h", ylabel = "Order Parameters",rightmargin = 1.5Plots.cm, lw = 2)
-
-# # # ΔEplot = plot()
-# ΔEplot = twinx()
-# plot!(ΔEplot, field, abs.(ΔE), shape = :x, label = "ΔE D = $(D) ferro",legend = :topright, xlabel = "h", ylabel = "ΔE", lw = 2)
-
-# Eplot = plot()
-# plot!(Eplot, field, E, shape = :auto, label = "E 1x2 cell D = $(D) $(type)",legend = :bottomleft, xlabel = "h", ylabel = "E", lw = 2)
-# dEplot = plot()
-# dEplot = twinx()
-# dE = deriv_y(field, E)
-# plot!(dEplot, field, dE, shape = :auto, color = :red, label = "∂E 1x2 cell D = $(D)",legend = :bottomright, xlabel = "Γ/|K|", ylabel = "∂E", lw = 2, rightmargin = 2.5Plots.cm)
-# ddEplot = twinx()
-# ddE = deriv_y(field, dE)
-# plot!(ddEplot, field, ddE, shape = :auto, label = "∂²E 1x2 cell D = $(D)", legend = :topright, xlabel = "Γ/|K|", ylabel = "∂²E", lw = 2)
-# X,Y1,Y2,Y3,Y4 = read_Exy(folder*"2021WeiLi-E.log")
-# plot!(Eplot, X*sqrt(3), Y1, shape = :auto, label = "2021WeiLi-fDMRG-YC4x12x2",legend = :topright, xlabel = "h", ylabel = "E", lw = 2)
-# plot!(Eplot, X*sqrt(3), Y2, shape = :auto, label = "2021WeiLi-fDMRG-YC6x12x2",legend = :topright, xlabel = "h", ylabel = "E", lw = 2)
-# plot!(Eplot, X*sqrt(3), Y3, shape = :auto, label = "2021WeiLi-iDMRG-YC4",legend = :topright, xlabel = "h", ylabel = "E", lw = 2)
-# plot!(Eplot, X*sqrt(3), Y4, shape = :auto, label = "2021WeiLi-iDMRG-YC6",legend = :bottomleft, xlabel = "h", ylabel = "E", lw = 2)
-# dE2 = deriv_y(X*sqrt(3), Y4)
-# plot!(dEplot, X*sqrt(3), dE2, shape = :auto,  color = :red, label = "2021WeiLi-iDMRG-YC6 dE",legend =:topright, xlabel = "h", ylabel = "dE", lw = 2)
-
-
-# # Crossplot = plot()
-# # plot!(Crossplot, Γ, Cross, shape = :auto, label = "Cross D = $(D)",legend = :bottomright, xlabel = "Γ/|K|", ylabel = "Cross norm", lw = 2)
-# # savefig(Eplot,"./plot/K_Γ_1x2&1x3_E-Γ-D$(D)_χ$(χ).svg")
-# # @show zigzag stripy ferro mag Neel ΔE Cross
-# for i in 1:length(dferro)
-#     if dferro[i] > 0.5
-#         dferro[i] = 0.5
-#     end
-# end
+# print({})
+# for
+# @show collect(f) E
