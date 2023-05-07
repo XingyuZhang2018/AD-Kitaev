@@ -88,7 +88,7 @@ function expectationvalue(h, ap, env, oc, key)
         jr = j + 1 - (j==Nj) * Nj
         lr = oc1(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,jr],ARu[:,:,:,i,jr],ap[i,jr],ARd[:,:,:,ir,jr])
         e = Array(ein"pqrs, pqrs -> "(lr,hz))[]
-        n =  Array(ein"pprr -> "(lr))[]
+        n = Array(ein"pprr -> "(lr))[]
         println("hz = $(e/n)")
         etol += e/n
 
@@ -163,7 +163,18 @@ end
 Initial `bcipeps` and give `key` for use of later optimization. The key include `model`, `D`, `χ`, `tol` and `maxiter`. 
 The iPEPS is random initial if there isn't any calculation before, otherwise will be load from file `/data/model_D_chi_tol_maxiter.jld2`
 """
-function init_ipeps(model::HamiltonianModel, fdirection::Vector{Float64} = [0.0,0.0,0.0], field::Float64 = 0.0; folder::String="./data/", type::String = "", atype = Array, Ni::Int, Nj::Int, D::Int, χ::Int, tol::Real, maxiter::Int, miniter::Int, verbose = true)
+function init_ipeps(model::HamiltonianModel, 
+                    fdirection::Vector{Float64} = [0.0,0.0,0.0], 
+                    field::Float64 = 0.0; 
+                    folder::String="./data/", 
+                    type::String = "", 
+                    atype = Array, 
+                    Ni::Int, Nj::Int, 
+                    D::Int, χ::Int, 
+                    tol::Real, maxiter::Int, miniter::Int, 
+                    verbose = true
+                    )
+                    
     if field == 0.0
         folder *= "$(Ni)x$(Nj)/$(model)/"
     else
@@ -193,7 +204,12 @@ two-site hamiltonian `h`. The minimization is done using `Optim` with default-me
 providing `optimmethod`. Other options to optim can be passed with `optimargs`.
 The energy is calculated using vumps with key include parameters `χ`, `tol` and `maxiter`.
 """
-function optimiseipeps(bulk, key; f_tol = 1e-6, opiter = 100, verbose= false, optimmethod = LBFGS(m = 20))
+function optimiseipeps(bulk, key; 
+                       f_tol = 1e-6, opiter = 100, 
+                       verbose= false, 
+                       optimmethod = LBFGS(m = 20)
+                       )
+
     _, model, _, atype, Ni, Nj, D, χ, _, _, _ = key
     h = hamiltonian(model)
     to = TimerOutput()
