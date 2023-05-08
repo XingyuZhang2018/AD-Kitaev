@@ -72,7 +72,7 @@ gnorm", "[", "file_", "]"}], ":=",
           RowBox[{"{", 
            RowBox[{
            "\"\<E:\\\\1 - research\\\\4.9 - \
-AutoDiff\\\\data\\\\ADBCVUMPS\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]_\
+AutoDiff\\\\data\\\\AD_Kitaev\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]_\
 1x2\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]{Float64}(-1.0, -0.1, 0.3, \
 -0.02)_field[1.0, 1.0, 1.0]_\>\"", ",", "#1", ",", "\"\<_\>\"", ",", "#2", 
             ",", "\"\<\\\\D\>\"", ",", "#3", ",", "\"\<_chi\>\"", ",", "#4", 
@@ -117,7 +117,7 @@ AutoDiff\\\\data\\\\ADBCVUMPS\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]_\
           RowBox[{"{", 
            RowBox[{
            "\"\<E:\\\\1 - research\\\\4.9 - \
-AutoDiff\\\\data\\\\ADBCVUMPS\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]_\
+AutoDiff\\\\data\\\\AD_Kitaev\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]_\
 1x2\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]{Float64}(-1.0, -0.1, 0.3, \
 -0.02)_field[1.0, 1.0, 1.0]_\>\"", ",", "#1", ",", "\"\<_\>\"", ",", "#2", 
             ",", "\"\<\\\\D\>\"", ",", "#3", ",", "\"\<_chi\>\"", ",", "#4", 
@@ -1521,7 +1521,7 @@ Cell[BoxData[
    RowBox[{
    "Load\[LetterSpace]Time\[LetterSpace]Step\[LetterSpace]Energy\[LetterSpace]\
 gnorm", "[", 
-    "\"\<E:\\\\1 - research\\\\4.9 - AutoDiff\\\\data\\\\ADBCVUMPS\\\\K_J_\
+    "\"\<E:\\\\1 - research\\\\4.9 - AutoDiff\\\\data\\\\AD_Kitaev\\\\K_J_\
 \[CapitalGamma]_\[CapitalGamma]\[Prime]_1x2\\\\K_J_\[CapitalGamma]_\
 \[CapitalGamma]\[Prime]{Float64}(-1.0, -0.1, 0.3, -0.02)_field[1.0, 1.0, \
 1.0]_0.12_ferro\\\\D2_chi20_tol1.0e-10_maxiter10_miniter1.log\>\"", "]"}]}], 
@@ -2198,7 +2198,7 @@ gnorm", "[", "file_", "]"}], ":=",
           RowBox[{"{", 
            RowBox[{
            "\"\<E:\\\\1 - research\\\\4.9 - \
-AutoDiff\\\\data\\\\ADBCVUMPS\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]_\
+AutoDiff\\\\data\\\\AD_Kitaev\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]_\
 1x2\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]{Float64}(-1.0, -0.1, 0.3, \
 -0.02)_field[1.0, 1.0, -2.0]_\>\"", ",", "#1", ",", "\"\<_\>\"", ",", "#2", 
             ",", "\"\<\\\\D\>\"", ",", "#3", ",", "\"\<_chi\>\"", ",", "#4", 
@@ -2243,7 +2243,7 @@ AutoDiff\\\\data\\\\ADBCVUMPS\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]_\
           RowBox[{"{", 
            RowBox[{
            "\"\<E:\\\\1 - research\\\\4.9 - \
-AutoDiff\\\\data\\\\ADBCVUMPS\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]_\
+AutoDiff\\\\data\\\\AD_Kitaev\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]_\
 1x2\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]{Float64}(-1.0, -0.1, 0.3, \
 -0.02)_field[1.0, 1.0, -2.0]_\>\"", ",", "#1", ",", "\"\<_\>\"", ",", "#2", 
             ",", "\"\<\\\\D\>\"", ",", "#3", ",", "\"\<_chi\>\"", ",", "#4", 
@@ -2584,7 +2584,7 @@ Cell[BoxData[
    RowBox[{
    "Load\[LetterSpace]Time\[LetterSpace]Step\[LetterSpace]Energy\[LetterSpace]\
 gnorm", "[", 
-    "\"\<E:\\\\1 - research\\\\4.9 - AutoDiff\\\\data\\\\ADBCVUMPS\\\\K_J_\
+    "\"\<E:\\\\1 - research\\\\4.9 - AutoDiff\\\\data\\\\AD_Kitaev\\\\K_J_\
 \[CapitalGamma]_\[CapitalGamma]\[Prime]_1x2\\\\K_J_\[CapitalGamma]_\
 \[CapitalGamma]\[Prime]{Float64}(-1.0, -0.1, 0.3, -0.02)_field[1.0, 1.0, \
 -2.0]_0.01_ferro\\\\D4_chi80_tol1.0e-10_maxiter10_miniter1.log\>\"", "]"}]}], 
@@ -3225,7 +3225,7 @@ Cell[BoxData[
    RowBox[{
    "Load\[LetterSpace]Time\[LetterSpace]Step\[LetterSpace]Energy\[LetterSpace]\
 gnorm", "[", 
-    "\"\<E:\\\\1 - research\\\\4.9 - AutoDiff\\\\data\\\\ADBCVUMPS\\\\K_J_\
+    "\"\<E:\\\\1 - research\\\\4.9 - AutoDiff\\\\data\\\\AD_Kitaev\\\\K_J_\
 \[CapitalGamma]_\[CapitalGamma]\[Prime]_1x2\\\\K_J_\[CapitalGamma]_\
 \[CapitalGamma]\[Prime]{Float64}(-1.0, -0.1, 0.3, -0.02)_field[1.0, 1.0, \
 -2.0]_0.01_zigzag\\\\D4_chi80_tol1.0e-10_maxiter10_miniter1.log\>\"", "]"}]}],
@@ -4302,7 +4302,7 @@ Cell[BoxData[
    RowBox[{
    "Load\[LetterSpace]Time\[LetterSpace]Step\[LetterSpace]Energy\[LetterSpace]\
 gnorm", "[", 
-    "\"\<E:\\\\1 - research\\\\4.9 - AutoDiff\\\\data\\\\ADBCVUMPS\\\\K_J_\
+    "\"\<E:\\\\1 - research\\\\4.9 - AutoDiff\\\\data\\\\AD_Kitaev\\\\K_J_\
 \[CapitalGamma]_\[CapitalGamma]\[Prime]_1x2\\\\K_J_\[CapitalGamma]_\
 \[CapitalGamma]\[Prime]{Float64}(-1.0, -0.1, 0.3, -0.02)_field[1.0, 1.0, \
 -2.0]_0.01_ferro\\\\D4_chi80_tol1.0e-10_maxiter10_miniter1.log\>\"", "]"}]}], 
@@ -4943,7 +4943,7 @@ Cell[BoxData[
    RowBox[{
    "Load\[LetterSpace]Time\[LetterSpace]Step\[LetterSpace]Energy\[LetterSpace]\
 gnorm", "[", 
-    "\"\<E:\\\\1 - research\\\\4.9 - AutoDiff\\\\data\\\\ADBCVUMPS\\\\K_J_\
+    "\"\<E:\\\\1 - research\\\\4.9 - AutoDiff\\\\data\\\\AD_Kitaev\\\\K_J_\
 \[CapitalGamma]_\[CapitalGamma]\[Prime]_1x2\\\\K_J_\[CapitalGamma]_\
 \[CapitalGamma]\[Prime]{Float64}(-1.0, -0.1, 0.3, -0.02)_field[1.0, 1.0, \
 -2.0]_0.01_zigzag\\\\D4_chi80_tol1.0e-10_maxiter10_miniter1.log\>\"", "]"}]}],

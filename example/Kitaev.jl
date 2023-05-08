@@ -1,4 +1,4 @@
-using ADBCVUMPS
+using AD_Kitaev
 using CUDA
 using Random
 using Optim
@@ -18,6 +18,6 @@ bulk, key = init_ipeps(K_J_Γ_Γ′(-1.0, 0.0, 0.0, 0.0),
 
 optimiseipeps(bulk, key; 
               f_tol = 1e-10, 
-              opiter = 100, 
+              opiter = 10, 
               verbose = true
               )

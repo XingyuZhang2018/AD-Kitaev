@@ -1,11 +1,11 @@
-using ADBCVUMPS
+using AD_Kitaev
 using CUDA
 using FileIO
 using Printf: @sprintf
 using Random
 
 Random.seed!(100)
-folder  = "/data/xyzhang/ADBCVUMPS/"
+folder  = "/data/xyzhang/AD_Kitaev/"
 atype   = CuArray
 D, χ    = 4, 80
 tol     = 1e-10

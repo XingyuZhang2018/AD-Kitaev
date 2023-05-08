@@ -1,4 +1,4 @@
-module ADBCVUMPS
+module AD_Kitaev
 
 using Zygote
 using OMEinsum

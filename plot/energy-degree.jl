@@ -17,7 +17,7 @@ D = 2
     χ = 20
     ϕ = 0.0:0.05:1.0
     yenergy = []
-    folder = "./../../../../data1/xyzhang/ADBCVUMPS/K_Γ_1x2/"
+    folder = "./../../../../data1/xyzhang/AD_Kitaev/K_Γ_1x2/"
     for x in ϕ
         model = K_Γ(x)
         file = folder*"$(model)_Array/D$(D)_chi$(χ)_tol1.0e-10_maxiter10_miniter2.log"

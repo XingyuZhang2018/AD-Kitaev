@@ -15,7 +15,7 @@ export init_ipeps, energy, optimiseipeps
     energy(h, bcipeps; χ, tol, maxiter)
 
 return the energy of the `bcipeps` 2-site hamiltonian `h` and calculated via a
-BCVUMPS with parameters `χ`, `tol` and `maxiter`.
+TeneT with parameters `χ`, `tol` and `maxiter`.
 """
 function energy(h, bulk, oc, key; verbose = true, savefile = true)
     folder, _, _, atype, Ni, Nj, D, χ, tol, maxiter, miniter = key

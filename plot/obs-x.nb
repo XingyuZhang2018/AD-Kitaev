@@ -58,7 +58,7 @@ Cell[BoxData[{
           RowBox[{"{", 
            RowBox[{
            "\"\<E:\\\\1 - research\\\\4.9 - \
-AutoDiff\\\\data\\\\ADBCVUMPS\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]_\
+AutoDiff\\\\data\\\\AD_Kitaev\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]_\
 1x2\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]{Float64}(-1.0, -0.1, 0.3, \
 -0.02)_field[1.0, 1.0, 1.0]_\>\"", ",", "#1", ",", "\"\<_\>\"", ",", "#2", 
             ",", "\"\<\\\\D\>\"", ",", "#3", ",", "\"\<_\[Chi]\>\"", ",", 
@@ -146,7 +146,7 @@ AutoDiff\\\\data\\\\ADBCVUMPS\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]_\
           RowBox[{"{", 
            RowBox[{
            "\"\<E:\\\\1 - research\\\\4.9 - \
-AutoDiff\\\\data\\\\ADBCVUMPS\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]_\
+AutoDiff\\\\data\\\\AD_Kitaev\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]_\
 1x2\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]{Float64}(-1.0, -0.1, 0.3, \
 -0.02)_field[1.0, 1.0, 1.0]_\>\"", ",", "#1", ",", "\"\<_\>\"", ",", "#2", 
             ",", "\"\<\\\\D\>\"", ",", "#3", ",", "\"\<_\[Chi]\>\"", ",", 
@@ -979,7 +979,7 @@ Cell[BoxData[{
           RowBox[{"{", 
            RowBox[{
            "\"\<E:\\\\1 - research\\\\4.9 - \
-AutoDiff\\\\data\\\\ADBCVUMPS\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]_\
+AutoDiff\\\\data\\\\AD_Kitaev\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]_\
 1x2\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]{Float64}(-1.0, -0.1, 0.3, \
 -0.02)_field[1.0, 1.0, 1.0]_\>\"", ",", "#1", ",", "\"\<_\>\"", ",", "#2", 
             ",", "\"\<\\\\observable.log\>\""}], "}"}], "&"}], "[", 
@@ -1056,7 +1056,7 @@ AutoDiff\\\\data\\\\ADBCVUMPS\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]_\
           RowBox[{"{", 
            RowBox[{
            "\"\<E:\\\\1 - research\\\\4.9 - \
-AutoDiff\\\\data\\\\ADBCVUMPS\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]_\
+AutoDiff\\\\data\\\\AD_Kitaev\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]_\
 1x2\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\[Prime]{Float64}(-1.0, -0.1, 0.3, \
 -0.02)_field[1.0, 1.0, 1.0]_\>\"", ",", "#1", ",", "\"\<_\>\"", ",", "#2", 
             ",", "\"\<\\\\observable.log\>\""}], "}"}], "&"}], "[", 
@@ -2489,7 +2489,7 @@ Cell[BoxData[{
           RowBox[{"{", 
            RowBox[{
            "\"\<E:\\\\1 - research\\\\4.9 - \
-AutoDiff\\\\data\\\\ADBCVUMPS\\\\1x2\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\
+AutoDiff\\\\data\\\\AD_Kitaev\\\\1x2\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\
 \[Prime]{Float64}(-1.0, -0.1, 0.3, -0.02)_field[1.0, 1.0, -2.0]_\>\"", ",", 
             "#1", ",", "\"\<_\>\"", ",", "#2", ",", "\"\<\\\\D\>\"", ",", 
             "#3", ",", "\"\<_\[Chi]\>\"", ",", "#4", ",", 
@@ -2577,7 +2577,7 @@ AutoDiff\\\\data\\\\ADBCVUMPS\\\\1x2\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\
           RowBox[{"{", 
            RowBox[{
            "\"\<E:\\\\1 - research\\\\4.9 - \
-AutoDiff\\\\data\\\\ADBCVUMPS\\\\1x2\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\
+AutoDiff\\\\data\\\\AD_Kitaev\\\\1x2\\\\K_J_\[CapitalGamma]_\[CapitalGamma]\
 \[Prime]{Float64}(-1.0, -0.1, 0.3, -0.02)_field[1.0, 1.0, -2.0]_\>\"", ",", 
             "#1", ",", "\"\<_\>\"", ",", "#2", ",", "\"\<\\\\D\>\"", ",", 
             "#3", ",", "\"\<_\[Chi]\>\"", ",", "#4", ",", 

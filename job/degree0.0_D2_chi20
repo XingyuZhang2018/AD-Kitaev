@@ -3,5 +3,5 @@
 #PBS -j oe
 #PBS -V
 #PBS -l nodes=1:ppn=8
-project_dir=/home/xyzhang/research/ADBCVUMPS.jl
-julia --project=${project_dir} ${project_dir}/job/Kitaev_Heisenberg.jl --degree 0.0 --D 2 --chi 20 --folder ~/../../data1/xyzhang/ADBCVUMPS/Kitaev_Heisenberg/
+project_dir=/home/xyzhang/research/AD_Kitaev.jl
+julia --project=${project_dir} ${project_dir}/job/Kitaev_Heisenberg.jl --degree 0.0 --D 2 --chi 20 --folder ~/../../data1/xyzhang/AD_Kitaev/Kitaev_Heisenberg/

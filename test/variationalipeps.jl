@@ -1,6 +1,6 @@
-using ADBCVUMPS
-using ADBCVUMPS: energy, num_grad, diaglocal, optcont
-using BCVUMPS
+using AD_Kitaev
+using AD_Kitaev: energy, num_grad, diaglocal, optcont
+using TeneT
 using CUDA
 using LinearAlgebra: norm, svd
 using LineSearches

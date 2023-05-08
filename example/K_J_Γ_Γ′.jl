@@ -1,4 +1,4 @@
-using ADBCVUMPS
+using AD_Kitaev
 using CUDA
 using Random
 using Optim

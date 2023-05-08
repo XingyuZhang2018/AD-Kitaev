@@ -3,5 +3,5 @@
 #PBS -j oe
 #PBS -V
 #PBS -l nodes=1:ppn=8:gpus=1
-project_dir=/home/xyzhang/research/ADBCVUMPS.jl
-julia --project=${project_dir} ${project_dir}/job/Kitaev.jl --D 4 --chi 20 --folder ~/../../data1/xyzhang/ADBCVUMPS/Kitaev_complex/
+project_dir=/home/xyzhang/research/AD_Kitaev.jl
+julia --project=${project_dir} ${project_dir}/job/Kitaev.jl --D 4 --chi 20 --folder ~/../../data1/xyzhang/AD_Kitaev/Kitaev_complex/

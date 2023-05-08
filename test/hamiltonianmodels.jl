@@ -1,7 +1,7 @@
 using Test
-using BCVUMPS
-using ADBCVUMPS
-using ADBCVUMPS:diaglocal
+using TeneT
+using AD_Kitaev
+using AD_Kitaev:diaglocal
 
 @testset "hamiltonianmodels" for Ni = [1,2,3], Nj = [1,2,3]
     @test Ising(Ni,Nj) isa HamiltonianModel
