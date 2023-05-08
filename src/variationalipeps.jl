@@ -17,8 +17,8 @@ export init_ipeps, energy, optimiseipeps
 return the energy of the `bcipeps` 2-site hamiltonian `h` and calculated via a
 TeneT with parameters `χ`, `tol` and `maxiter`.
 """
-function energy(h, bulk, oc, key; verbose = true, savefile = true)
-    folder, _, _, atype, Ni, Nj, D, χ, tol, maxiter, miniter = key
+function energy(h, bulk, oc, key; savefile = true)
+    folder, _, _, atype, Ni, Nj, D, χ, tol, maxiter, miniter, verbose = key
     # bcipeps = indexperm_symmetrize(bcipeps)  # NOTE: this is not good
     ap = [ein"abcdx,ijkly -> aibjckdlxy"(bulk[i], conj(bulk[i])) for i = 1:Ni*Nj]
     ap = [reshape(ap[i], D^2, D^2, D^2, D^2, 4, 4) for i = 1:Ni*Nj]
@@ -69,7 +69,7 @@ a `SquareBCVUMPSRuntime` `env`.
 """
 function expectationvalue(h, ap, env, oc, key)
     _, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR, FLu, FRu = env
-    _, _, field, atype, Ni, Nj, _, _, _, _, _ = key
+    _, _, field, atype, Ni, Nj, _, _, _, _, _, verbose = key
     oc1, oc2 = oc
     ACu = ALCtoAC(ALu, Cu)
     ACd = ALCtoAC(ALd, Cd)
@@ -83,19 +83,19 @@ function expectationvalue(h, ap, env, oc, key)
     end
 
     for j = 1:Nj, i = 1:Ni
-        println("===========$i,$j===========")
+        verbose && println("===========$i,$j===========")
         ir = Ni + 1 - i
         jr = j + 1 - (j==Nj) * Nj
         lr = oc1(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,jr],ARu[:,:,:,i,jr],ap[i,jr],ARd[:,:,:,ir,jr])
         e = Array(ein"pqrs, pqrs -> "(lr,hz))[]
         n = Array(ein"pprr -> "(lr))[]
-        println("hz = $(e/n)")
+        verbose && println("hz = $(e/n)")
         etol += e/n
 
         lr = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,j])
         e = Array(ein"pq, pq -> "(lr,hx))[]
         n = Array(ein"pp -> "(lr))[]
-        println("hx = $(e/n)")
+        verbose && println("hx = $(e/n)")
         etol += e/n
 
         ir  =  i + 1 - (i==Ni) * Ni
@@ -103,7 +103,7 @@ function expectationvalue(h, ap, env, oc, key)
         lr = oc2(ACu[:,:,:,i,j],FLu[:,:,:,i,j],ap[i,j],FRu[:,:,:,i,j],FL[:,:,:,ir,j],ap[ir,j],FR[:,:,:,ir,j],ACd[:,:,:,irr,j])
         e = Array(ein"pqrs, pqrs -> "(lr,hy))[]
         n =  Array(ein"pprr -> "(lr))[]
-        println("hy = $(e/n)")
+        verbose && println("hy = $(e/n)")
         etol += e/n
     end
     
@@ -129,12 +129,12 @@ function expectationvalue(h, ap, env, oc, key)
             n3 = Array(ein"pp -> "(lr3))[]
             M1 = [Array(Mx1)[]/n3, Array(My1)[]/n3, Array(Mz1)[]/n3]
             M2 = [Array(Mx2)[]/n3, Array(My2)[]/n3, Array(Mz2)[]/n3]
-            @show M1 M2
+            verbose && (@show M1 M2)
             etol -= (M1 + M2)' * field / 2
         end
     end
 
-    println("e = $(etol/Ni/Nj)")
+    verbose && println("e = $(etol/Ni/Nj)")
     return etol/Ni/Nj
 end
 
@@ -169,9 +169,12 @@ function init_ipeps(model::HamiltonianModel,
                     folder::String="./data/", 
                     type::String = "", 
                     atype = Array, 
-                    Ni::Int, Nj::Int, 
+                    Ni::Int = 1, 
+                    Nj::Int = 1, 
                     D::Int, χ::Int, 
-                    tol::Real, maxiter::Int, miniter::Int, 
+                    tol::Real = 1e-10, 
+                    maxiter::Int = 10, 
+                    miniter::Int = 1, 
                     verbose = true
                     )
                     
@@ -191,7 +194,7 @@ function init_ipeps(model::HamiltonianModel,
         verbose && println("random initial BCiPEPS $chkp_file")
     end
     bulk /= norm(bulk)
-    key = (folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter, miniter)
+    key = (folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter, miniter, verbose)
     return bulk, key
 end
 
@@ -214,8 +217,8 @@ function optimiseipeps(bulk, key;
     h = hamiltonian(model)
     to = TimerOutput()
     oc = optcont(D, χ)
-    f(x) = @timeit to "forward" real(energy(h, buildbcipeps(atype(x),Ni,Nj), oc, key; verbose=verbose))
-    ff(x) = real(energy(h, buildbcipeps(atype(x),Ni,Nj), oc, key; verbose=verbose))
+    f(x) = @timeit to "forward" real(energy(h, buildbcipeps(atype(x),Ni,Nj), oc, key))
+    ff(x) = real(energy(h, buildbcipeps(atype(x),Ni,Nj), oc, key))
     function g(x)
         @timeit to "backward" begin
             grad = Zygote.gradient(ff,atype(x))[1]

@@ -13,7 +13,7 @@ bulk, key = init_ipeps(K_J_Γ_Γ′(-1.0, 0.0, 0.0, 0.0),
                        tol=1e-10, maxiter=10, miniter=1,
                        folder=folder, 
                        type = "_random",
-                       atype = Array
+                       atype = CuArray
                        )
 
 optimiseipeps(bulk, key; 
