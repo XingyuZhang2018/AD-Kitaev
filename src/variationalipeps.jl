@@ -18,7 +18,7 @@ return the energy of the `bcipeps` 2-site hamiltonian `h` and calculated via a
 TeneT with parameters `χ`, `tol` and `maxiter`.
 """
 function energy(h, bulk, oc, key; savefile = true)
-    folder, _, _, atype, Ni, Nj, D, χ, tol, maxiter, miniter, verbose = key
+    folder, _, _, atype, Ni, Nj, D, χ, tol, maxiter, miniter, ifcheckpoint, verbose = key
     # bcipeps = indexperm_symmetrize(bcipeps)  # NOTE: this is not good
     ap = [ein"abcdx,ijkly -> aibjckdlxy"(bulk[i], conj(bulk[i])) for i = 1:Ni*Nj]
     ap = [reshape(ap[i], D^2, D^2, D^2, D^2, 4, 4) for i = 1:Ni*Nj]
@@ -31,7 +31,7 @@ function energy(h, bulk, oc, key; savefile = true)
     a = copy(a)
 
     env = obs_env(a; χ = χ, tol = tol, maxiter = maxiter, miniter = miniter, verbose = verbose, savefile = savefile, infolder = folder, outfolder = folder, savetol = 1e-3)
-    e = expectationvalue(h, ap, env, oc, key)
+    e = ifcheckpoint ? checkpoint(expectationvalue, h, ap, env, oc, key) : expectationvalue(h, ap, env, oc, key)
     return e
 end
 
@@ -69,7 +69,7 @@ a `SquareBCVUMPSRuntime` `env`.
 """
 function expectationvalue(h, ap, env, oc, key)
     _, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR, FLu, FRu = env
-    _, _, field, atype, Ni, Nj, _, _, _, _, _, verbose = key
+    _, _, field, atype, Ni, Nj, _, _, _, _, _, _, verbose = key
     oc1, oc2 = oc
     ACu = ALCtoAC(ALu, Cu)
     ACd = ALCtoAC(ALd, Cd)
@@ -175,6 +175,7 @@ function init_ipeps(model::HamiltonianModel,
                     tol::Real = 1e-10, 
                     maxiter::Int = 10, 
                     miniter::Int = 1, 
+                    ifcheckpoint = false,
                     verbose = true
                     )
                     
@@ -194,7 +195,7 @@ function init_ipeps(model::HamiltonianModel,
         verbose && println("random initial BCiPEPS $chkp_file")
     end
     bulk /= norm(bulk)
-    key = (folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter, miniter, verbose)
+    key = (folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter, miniter, ifcheckpoint, verbose)
     return bulk, key
 end
 
@@ -213,7 +214,7 @@ function optimiseipeps(bulk, key;
                        optimmethod = LBFGS(m = 20)
                        )
 
-    _, model, _, atype, Ni, Nj, D, χ, _, _, _ = key
+    _, model, _, atype, Ni, Nj, D, χ, _, _, _, _ = key
     h = hamiltonian(model)
     to = TimerOutput()
     oc = optcont(D, χ)
@@ -249,7 +250,7 @@ function writelog(os::OptimizationState, key=nothing)
     printstyled(message; bold=true, color=:red)
     flush(stdout)
 
-    folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter, miniter = key
+    folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter, miniter, ifcheckpoint, verbose = key
     if !(key === nothing)
         logfile = open(folder*"D$(D)_chi$(χ)_tol$(tol)_maxiter$(maxiter)_miniter$(miniter).log", "a")
         write(logfile, message)
