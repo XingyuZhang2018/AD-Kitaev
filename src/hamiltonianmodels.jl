@@ -1,4 +1,4 @@
-export TFIsing, Heisenberg, Kitaev, Kitaev_Heisenberg, K_J_Γ_Γ′, K_Γ
+export diaglocal, TFIsing, Heisenberg, Kitaev, Kitaev_Heisenberg, K_J_Γ_Γ′, K_Γ
 export hamiltonian, HamiltonianModel
 
 const σx = ComplexF64[0 1; 1 0]
@@ -97,7 +97,7 @@ struct Kitaev{T<:Real} <: HamiltonianModel
     Jx::T
     Jy::T
 end
-Kitaev() = Kitaev(1.0, 1.0, 1.0)
+Kitaev() = Kitaev(-1.0, -1.0, -1.0)
 
 """
     hamiltonian(model::Kitaev)
@@ -127,12 +127,13 @@ end
 return the Kitaev_Heisenberg hamiltonian for the `model` as a two-site operator.
 """
 function hamiltonian(model::Kitaev_Heisenberg)
-    Heisenberg = cos(model.ϕ / 180 * pi) / 2 * (ein"ij,kl -> ijkl"(σz, σz) +
-                                 ein"ij,kl -> ijkl"(σx, σx) +
-                                 ein"ij,kl -> ijkl"(σy, σy) )
-    hx = Heisenberg + sin(model.ϕ / 180 * pi) * ein"ij,kl -> ijkl"(σx, σx)
-    hy = Heisenberg + sin(model.ϕ / 180 * pi) * ein"ij,kl -> ijkl"(σy, σy)
-    hz = Heisenberg + sin(model.ϕ / 180 * pi) * ein"ij,kl -> ijkl"(σz, σz)
+    op = ein"ij,kl -> ijkl"
+    Heisenberg = cos(model.ϕ / 180 * pi) / 2 * (op(σz, σz) +
+                                 op(σx, σx) +
+                                 op(σy, σy) )
+    hx = Heisenberg + sin(model.ϕ / 180 * pi) * op(σx, σx)
+    hy = Heisenberg + sin(model.ϕ / 180 * pi) * op(σy, σy)
+    hz = Heisenberg + sin(model.ϕ / 180 * pi) * op(σz, σz)
     hx / 8, hy / 8, hz / 8
 end
 
@@ -154,12 +155,13 @@ end
 return the K_J_Γ_Γ′ hamiltonian for the `model` as a two-site operator.
 """
 function hamiltonian(model::K_J_Γ_Γ′)
-    Heisenberg = model.J * (ein"ij,kl -> ijkl"(σz, σz) +
-                            ein"ij,kl -> ijkl"(σx, σx) +
-                            ein"ij,kl -> ijkl"(σy, σy) )
-    hx = Heisenberg + model.K * ein"ij,kl -> ijkl"(σx, σx) + model.Γ * (ein"ij,kl -> ijkl"(σy, σz) + ein"ij,kl -> ijkl"(σz, σy)) + model.Γ′ * (ein"ij,kl -> ijkl"(σx, σy) + ein"ij,kl -> ijkl"(σy, σx) + ein"ij,kl -> ijkl"(σz, σx) + ein"ij,kl -> ijkl"(σx, σz))
-    hy = Heisenberg + model.K * ein"ij,kl -> ijkl"(σy, σy) + model.Γ * (ein"ij,kl -> ijkl"(σx, σz) + ein"ij,kl -> ijkl"(σz, σx)) + model.Γ′ * (ein"ij,kl -> ijkl"(σy, σx) + ein"ij,kl -> ijkl"(σx, σy) + ein"ij,kl -> ijkl"(σz, σy) + ein"ij,kl -> ijkl"(σy, σz))
-    hz = Heisenberg + model.K * ein"ij,kl -> ijkl"(σz, σz) + model.Γ * (ein"ij,kl -> ijkl"(σx, σy) + ein"ij,kl -> ijkl"(σy, σx)) + model.Γ′ * (ein"ij,kl -> ijkl"(σz, σx) + ein"ij,kl -> ijkl"(σx, σz) + ein"ij,kl -> ijkl"(σy, σz) + ein"ij,kl -> ijkl"(σz, σy))
+    op = ein"ij,kl -> ijkl"
+    Heisenberg = model.J * (op(σz, σz) +
+                            op(σx, σx) +
+                            op(σy, σy) )
+    hx = Heisenberg + model.K * op(σx, σx) + model.Γ * (op(σy, σz) + op(σz, σy)) + model.Γ′ * (op(σx, σy) + op(σy, σx) + op(σz, σx) + op(σx, σz))
+    hy = Heisenberg + model.K * op(σy, σy) + model.Γ * (op(σx, σz) + op(σz, σx)) + model.Γ′ * (op(σy, σx) + op(σx, σy) + op(σz, σy) + op(σy, σz))
+    hz = Heisenberg + model.K * op(σz, σz) + model.Γ * (op(σx, σy) + op(σy, σx)) + model.Γ′ * (op(σz, σx) + op(σx, σz) + op(σy, σz) + op(σz, σy))
     hx / 8, hy / 8, hz / 8
 end
 
@@ -178,8 +180,9 @@ end
 return the K_Γ hamiltonian for the `model` as a two-site operator.
 """
 function hamiltonian(model::K_Γ)
-    hx = -cos(model.ϕ * pi) * ein"ij,kl -> ijkl"(σx, σx) + sin(model.ϕ * pi) * (ein"ij,kl -> ijkl"(σy, σz) + ein"ij,kl -> ijkl"(σz, σy))
-    hy = -cos(model.ϕ * pi) * ein"ij,kl -> ijkl"(σy, σy) + sin(model.ϕ * pi) * (ein"ij,kl -> ijkl"(σx, σz) + ein"ij,kl -> ijkl"(σz, σx))
-    hz = -cos(model.ϕ * pi) * ein"ij,kl -> ijkl"(σz, σz) + sin(model.ϕ * pi) * (ein"ij,kl -> ijkl"(σx, σy) + ein"ij,kl -> ijkl"(σy, σx))
+    op = ein"ij,kl -> ijkl"
+    hx = -cos(model.ϕ * pi) * op(σx, σx) + sin(model.ϕ * pi) * (op(σy, σz) + op(σz, σy))
+    hy = -cos(model.ϕ * pi) * op(σy, σy) + sin(model.ϕ * pi) * (op(σx, σz) + op(σz, σx))
+    hz = -cos(model.ϕ * pi) * op(σz, σz) + sin(model.ϕ * pi) * (op(σx, σy) + op(σy, σx))
     hx / 8, hy / 8, hz / 8
 end

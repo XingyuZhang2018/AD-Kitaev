@@ -1,11 +1,11 @@
-using ADBCVUMPS
+using AD_Kitaev
 using CUDA
 using FileIO
 
 model = K_J_Γ_Γ′(-1.0, -0.1, 0.3, -0.02)
 fdirection = [1.0, 1.0, 1.0]
 type = "_random"
-folder = "./../../../../data/xyzhang/ADBCVUMPS/K_J_Γ_Γ′_1x2/"
+folder = "./../../../../data/xyzhang/AD_Kitaev/K_J_Γ_Γ′_1x2/"
 D = 2
 χ = 20
 tol = 1e-10

@@ -15,10 +15,10 @@ export init_ipeps, energy, optimiseipeps
     energy(h, bcipeps; χ, tol, maxiter)
 
 return the energy of the `bcipeps` 2-site hamiltonian `h` and calculated via a
-BCVUMPS with parameters `χ`, `tol` and `maxiter`.
+TeneT with parameters `χ`, `tol` and `maxiter`.
 """
-function energy(h, bulk, oc, key; verbose = true, savefile = true)
-    folder, _, _, atype, Ni, Nj, D, χ, tol, maxiter, miniter = key
+function energy(h, bulk, oc, key; savefile = true)
+    folder, _, _, atype, Ni, Nj, D, χ, tol, maxiter, miniter, verbose = key
     # bcipeps = indexperm_symmetrize(bcipeps)  # NOTE: this is not good
     ap = [ein"abcdx,ijkly -> aibjckdlxy"(bulk[i], conj(bulk[i])) for i = 1:Ni*Nj]
     ap = [reshape(ap[i], D^2, D^2, D^2, D^2, 4, 4) for i = 1:Ni*Nj]
@@ -69,7 +69,7 @@ a `SquareBCVUMPSRuntime` `env`.
 """
 function expectationvalue(h, ap, env, oc, key)
     _, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR, FLu, FRu = env
-    _, _, field, atype, Ni, Nj, _, _, _, _, _ = key
+    _, _, field, atype, Ni, Nj, _, _, _, _, _, verbose = key
     oc1, oc2 = oc
     ACu = ALCtoAC(ALu, Cu)
     ACd = ALCtoAC(ALd, Cd)
@@ -83,19 +83,19 @@ function expectationvalue(h, ap, env, oc, key)
     end
 
     for j = 1:Nj, i = 1:Ni
-        println("===========$i,$j===========")
+        verbose && println("===========$i,$j===========")
         ir = Ni + 1 - i
         jr = j + 1 - (j==Nj) * Nj
         lr = oc1(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,jr],ARu[:,:,:,i,jr],ap[i,jr],ARd[:,:,:,ir,jr])
         e = Array(ein"pqrs, pqrs -> "(lr,hz))[]
-        n =  Array(ein"pprr -> "(lr))[]
-        println("hz = $(e/n)")
+        n = Array(ein"pprr -> "(lr))[]
+        verbose && println("hz = $(e/n)")
         etol += e/n
 
         lr = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,j])
         e = Array(ein"pq, pq -> "(lr,hx))[]
         n = Array(ein"pp -> "(lr))[]
-        println("hx = $(e/n)")
+        verbose && println("hx = $(e/n)")
         etol += e/n
 
         ir  =  i + 1 - (i==Ni) * Ni
@@ -103,7 +103,7 @@ function expectationvalue(h, ap, env, oc, key)
         lr = oc2(ACu[:,:,:,i,j],FLu[:,:,:,i,j],ap[i,j],FRu[:,:,:,i,j],FL[:,:,:,ir,j],ap[ir,j],FR[:,:,:,ir,j],ACd[:,:,:,irr,j])
         e = Array(ein"pqrs, pqrs -> "(lr,hy))[]
         n =  Array(ein"pprr -> "(lr))[]
-        println("hy = $(e/n)")
+        verbose && println("hy = $(e/n)")
         etol += e/n
     end
     
@@ -129,12 +129,12 @@ function expectationvalue(h, ap, env, oc, key)
             n3 = Array(ein"pp -> "(lr3))[]
             M1 = [Array(Mx1)[]/n3, Array(My1)[]/n3, Array(Mz1)[]/n3]
             M2 = [Array(Mx2)[]/n3, Array(My2)[]/n3, Array(Mz2)[]/n3]
-            @show M1 M2
+            verbose && (@show M1 M2)
             etol -= (M1 + M2)' * field / 2
         end
     end
 
-    println("e = $(etol/Ni/Nj)")
+    verbose && println("e = $(etol/Ni/Nj)")
     return etol/Ni/Nj
 end
 
@@ -163,7 +163,21 @@ end
 Initial `bcipeps` and give `key` for use of later optimization. The key include `model`, `D`, `χ`, `tol` and `maxiter`. 
 The iPEPS is random initial if there isn't any calculation before, otherwise will be load from file `/data/model_D_chi_tol_maxiter.jld2`
 """
-function init_ipeps(model::HamiltonianModel, fdirection::Vector{Float64} = [0.0,0.0,0.0], field::Float64 = 0.0; folder::String="./data/", type::String = "", atype = Array, Ni::Int, Nj::Int, D::Int, χ::Int, tol::Real, maxiter::Int, miniter::Int, verbose = true)
+function init_ipeps(model::HamiltonianModel, 
+                    fdirection::Vector{Float64} = [0.0,0.0,0.0], 
+                    field::Float64 = 0.0; 
+                    folder::String="./data/", 
+                    type::String = "", 
+                    atype = Array, 
+                    Ni::Int = 1, 
+                    Nj::Int = 1, 
+                    D::Int, χ::Int, 
+                    tol::Real = 1e-10, 
+                    maxiter::Int = 10, 
+                    miniter::Int = 1, 
+                    verbose = true
+                    )
+                    
     if field == 0.0
         folder *= "$(Ni)x$(Nj)/$(model)/"
     else
@@ -180,7 +194,7 @@ function init_ipeps(model::HamiltonianModel, fdirection::Vector{Float64} = [0.0,
         verbose && println("random initial BCiPEPS $chkp_file")
     end
     bulk /= norm(bulk)
-    key = (folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter, miniter)
+    key = (folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter, miniter, verbose)
     return bulk, key
 end
 
@@ -193,13 +207,18 @@ two-site hamiltonian `h`. The minimization is done using `Optim` with default-me
 providing `optimmethod`. Other options to optim can be passed with `optimargs`.
 The energy is calculated using vumps with key include parameters `χ`, `tol` and `maxiter`.
 """
-function optimiseipeps(bulk, key; f_tol = 1e-6, opiter = 100, verbose= false, optimmethod = LBFGS(m = 20))
+function optimiseipeps(bulk, key; 
+                       f_tol = 1e-6, opiter = 100, 
+                       verbose= false, 
+                       optimmethod = LBFGS(m = 20)
+                       )
+
     _, model, _, atype, Ni, Nj, D, χ, _, _, _ = key
     h = hamiltonian(model)
     to = TimerOutput()
     oc = optcont(D, χ)
-    f(x) = @timeit to "forward" real(energy(h, buildbcipeps(atype(x),Ni,Nj), oc, key; verbose=verbose))
-    ff(x) = real(energy(h, buildbcipeps(atype(x),Ni,Nj), oc, key; verbose=verbose))
+    f(x) = @timeit to "forward" real(energy(h, buildbcipeps(atype(x),Ni,Nj), oc, key))
+    ff(x) = real(energy(h, buildbcipeps(atype(x),Ni,Nj), oc, key))
     function g(x)
         @timeit to "backward" begin
             grad = Zygote.gradient(ff,atype(x))[1]

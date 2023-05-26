@@ -1,6 +1,6 @@
-using ADBCVUMPS
-using ADBCVUMPS:σx,σy,σz,buildbcipeps, optcont
-using BCVUMPS
+using AD_Kitaev
+using AD_Kitaev:σx,σy,σz,buildbcipeps, optcont
+using TeneT
 using CUDA
 using FileIO
 using LinearAlgebra: norm, I, cross
@@ -131,7 +131,7 @@ end
 
 
 Random.seed!(100)
-folder, tol, maxiter, miniter = "./../../../../data/xyzhang/ADBCVUMPS/K_J_Γ_Γ′_1x2/", 1e-10, 10, 2
+folder, tol, maxiter, miniter = "./../../../../data/xyzhang/AD_Kitaev/K_J_Γ_Γ′_1x2/", 1e-10, 10, 2
 Γ = 0.03
 Dχ = [[2,20]]
 mag, ferro, stripy, zigzag, Neel, E, ΔE, Cross = [], [], [], [], [], [], [], []
