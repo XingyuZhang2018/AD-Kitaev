@@ -210,16 +210,18 @@ The energy is calculated using vumps with key include parameters `χ`, `tol` and
 """
 function optimiseipeps(bulk, key; 
                        f_tol = 1e-6, opiter = 100, 
-                       verbose= false, 
+                       maxiter_ad = 10,
+                       verbose = false, 
                        optimmethod = LBFGS(m = 20)
                        )
 
-    _, model, _, atype, Ni, Nj, D, χ, _, _, _, _ = key
+    folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter, miniter, ifcheckpoint, verbose = key
+    keyback = folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter_ad, miniter, ifcheckpoint, verbose
     h = hamiltonian(model)
     to = TimerOutput()
     oc = optcont(D, χ)
     f(x) = @timeit to "forward" real(energy(h, buildbcipeps(atype(x),Ni,Nj), oc, key))
-    ff(x) = real(energy(h, buildbcipeps(atype(x),Ni,Nj), oc, key))
+    ff(x) = real(energy(h, buildbcipeps(atype(x),Ni,Nj), oc, keyback))
     function g(x)
         @timeit to "backward" begin
             grad = Zygote.gradient(ff,atype(x))[1]
