@@ -12,12 +12,12 @@ using CUDA
 export init_ipeps, energy, optimiseipeps
 
 """
-    energy(h, bcipeps; χ, tol, maxiter)
+    energy(h, bulk, oc, key; savefile = true, show_every = Inf)
 
 return the energy of the `bcipeps` 2-site hamiltonian `h` and calculated via a
 TeneT with parameters `χ`, `tol` and `maxiter`.
 """
-function energy(h, bulk, oc, key; savefile = true)
+function energy(h, bulk, oc, key; savefile = true, show_every = Inf)
     folder, _, _, atype, Ni, Nj, D, χ, tol, maxiter, miniter, ifcheckpoint, verbose = key
     # bcipeps = indexperm_symmetrize(bcipeps)  # NOTE: this is not good
     ap = [ein"abcdx,ijkly -> aibjckdlxy"(bulk[i], conj(bulk[i])) for i = 1:Ni*Nj]
@@ -30,7 +30,7 @@ function energy(h, bulk, oc, key; savefile = true)
     end
     a = copy(a)
 
-    env = obs_env(a; χ = χ, tol = tol, maxiter = maxiter, miniter = miniter, verbose = verbose, savefile = savefile, infolder = folder, outfolder = folder, savetol = 1e-3)
+    env = obs_env(a; χ = χ, tol = tol, maxiter = maxiter, miniter = miniter, verbose = verbose, savefile = savefile, infolder = folder, outfolder = folder, savetol = 1e-3, show_every = show_every)
     e = ifcheckpoint ? checkpoint(expectationvalue, h, ap, env, oc, key) : expectationvalue(h, ap, env, oc, key)
     return e
 end
@@ -211,12 +211,13 @@ The energy is calculated using vumps with key include parameters `χ`, `tol` and
 function optimiseipeps(bulk, key; 
                        f_tol = 1e-6, opiter = 100, 
                        maxiter_ad = 10,
+                       miniter_ad = 1,
                        verbose = false, 
                        optimmethod = LBFGS(m = 20)
                        )
 
     folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter, miniter, ifcheckpoint, verbose = key
-    keyback = folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter_ad, miniter, ifcheckpoint, verbose
+    keyback = folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter_ad, miniter_ad, ifcheckpoint, verbose
     h = hamiltonian(model)
     to = TimerOutput()
     oc = optcont(D, χ)
@@ -224,6 +225,9 @@ function optimiseipeps(bulk, key;
     ff(x) = real(energy(h, buildbcipeps(atype(x),Ni,Nj), oc, keyback))
     function g(x)
         @timeit to "backward" begin
+            println("for backward convergence:")
+            f(x)
+            println("true backward:")
             grad = Zygote.gradient(ff,atype(x))[1]
             # if norm(grad) > 1.0
             #     grad /= norm(grad)

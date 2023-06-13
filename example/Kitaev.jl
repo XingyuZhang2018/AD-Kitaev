@@ -21,5 +21,6 @@ optimiseipeps(bulk, key;
               f_tol = 1e-10, 
               opiter = 10, 
               maxiter_ad = 10,
+              miniter_ad = 3,
               verbose = true
               )
