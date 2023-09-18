@@ -1,13 +1,45 @@
-using TeneT: ALCtoAC
+using TeneT: ALCtoAC, _arraytype
 using Statistics: std, cross
 using LinearAlgebra: dot
+using KrylovKit
 export fidelity, observable
 
-function observable(model, fdirection, field, type, folder, atype, D, χ, tol, maxiter, miniter, Ni, Nj; ifload = false)
+"""
+```
+┌── Au─       ┌──        a──┬──b
+c   │  =   λc c             c      
+└── Ad─       └──        d──┴──e                
+```
+"""
+function cmap(ci, Aui, Adi)
+    cij = ein"(adi,acbi),dcei->bei"(ci,Aui,Adi)
+    circshift(cij, (0,0,1))
+end
+
+function cint(A)
+    χ, Ni, Nj = size(A)[[1,4,5]]
+    atype = _arraytype(A)
+    c = atype == Array ? rand(ComplexF64, χ, χ, Ni, Nj) : CUDA.rand(ComplexF64, χ, χ, Ni, Nj)
+    return c
+end
+
+function cor_len(Au, Ad, c = cint(Au); kwargs...) 
+    Ni,Nj = size(Au)[[4,5]]
+    λc = zeros(eltype(c),Ni)
+    ξ = 0.0
+    for i in 1:Ni
+        λcs, cs, info = eigsolve(X->cmap(X, Au[:,:,:,i,:], Ad[:,:,:,i,:]), c[:,:,i,:], 2, :LM; maxiter=100, ishermitian = false)
+        info.converged == 0 && @warn "cor_len not converged"
+        ξ = -1/log(abs(λcs[2]/λcs[1]))
+    end
+    return ξ
+end
+
+function observable(model, fdirection, field, type, folder, atype, D, χ, targχ, tol, maxiter, miniter, Ni, Nj; ifload = false)
     if field == 0.0
-        observable_log = folder*"$(Ni)x$(Nj)/$(model)/D$(D)_χ$(χ)_observable.log"
+        observable_log = folder*"$(Ni)x$(Nj)/$(model)/D$(D)_χ$(targχ)_observable.log"
     else
-        observable_log = folder*"$(Ni)x$(Nj)/$(model)_field$(fdirection)_$(@sprintf("%0.2f", field))$(type)/D$(D)_χ$(χ)_observable.log"
+        observable_log = folder*"$(Ni)x$(Nj)/$(model)_field$(fdirection)_$(@sprintf("%0.2f", field))$(type)/D$(D)_χ$(targχ)_observable.log"
     end
     if isfile(observable_log) && ifload
         println("load observable from $(observable_log)")
@@ -17,7 +49,7 @@ function observable(model, fdirection, field, type, folder, atype, D, χ, tol, m
         bulk, key = init_ipeps(model, fdirection, field; folder = folder, type = type, atype = atype, Ni = Ni, Nj = Nj, D=D, χ=χ, tol=tol, maxiter=maxiter, miniter=miniter, verbose = true)
         folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter, miniter = key
         h = hamiltonian(model)
-        oc = optcont(D, χ)
+        oc = optcont(D, targχ)
         bulk = buildbcipeps(bulk,Ni,Nj)
         ap = [ein"abcdx,ijkly -> aibjckdlxy"(bulk[i], conj(bulk[i])) for i = 1:Ni*Nj]
         ap = [atype(reshape(ap[i], D^2, D^2, D^2, D^2, 4, 4)) for i = 1:Ni*Nj]
@@ -27,19 +59,21 @@ function observable(model, fdirection, field, type, folder, atype, D, χ, tol, m
             a[:,:,:,:,i,j] = ein"ijklaa -> ijkl"(ap[i,j])
         end
 
-        chkp_file_obs = folder*"obs_D$(D^2)_χ$(χ).jld2"
+        chkp_file_obs = folder*"obs_D$(D^2)_χ$(targχ).jld2"
         FL, FR = load(chkp_file_obs)["env"]
-        chkp_file_up = folder*"up_D$(D^2)_χ$(χ).jld2"                     
-        rtup = SquareVUMPSRuntime(a, chkp_file_up, χ; verbose = false)   
+        chkp_file_up = folder*"up_D$(D^2)_χ$(targχ).jld2"                     
+        rtup = SquareVUMPSRuntime(a, chkp_file_up, targχ; verbose = false)   
         FLu, FRu, ALu, ARu, Cu = rtup.FL, rtup.FR, rtup.AL, rtup.AR, rtup.C
-        chkp_file_down = folder*"down_D$(D^2)_χ$(χ).jld2"                              
-        rtdown = SquareVUMPSRuntime(a, chkp_file_down, χ; verbose = false)   
+        chkp_file_down = folder*"down_D$(D^2)_χ$(targχ).jld2"                              
+        rtdown = SquareVUMPSRuntime(a, chkp_file_down, targχ; verbose = false)   
         ALd,ARd,Cd = rtdown.AL,rtdown.AR,rtdown.C
         ACu = ALCtoAC(ALu, Cu)
         ACd = ALCtoAC(ALd, Cd)
 
         ALu, Cu, ACu, ARu, ALd, Cd, ACd, ARd, FL, FR, FLu, FRu = map(atype, [ALu, Cu, ACu, ARu, ALd, Cd, ACd, ARd, FL, FR, FLu, FRu])
         
+        ξ = cor_len(ALu, ALd)
+
         M = Array{Array{ComplexF64,1},3}(undef, Ni, Nj, 2)
         Sx1 = reshape(ein"ab,cd -> acbd"(σx/2, I(2)), (4,4))
         Sx2 = reshape(ein"ab,cd -> acbd"(I(2), σx/2), (4,4))
@@ -81,6 +115,9 @@ function observable(model, fdirection, field, type, folder, atype, D, χ, tol, m
 
         oc1, oc2 = oc
         hx, hy, hz = h
+        Sx = atype(reshape(ein"ae,bfcg,dh -> abefcdgh"(I(2), hx, I(2)), (4,4,4,4)))
+        Sy = atype(reshape(ein"ae,bfcg,dh -> abefcdgh"(I(2), hy, I(2)), (4,4,4,4)))
+        Sz = atype(reshape(ein"ae,bfcg,dh -> abefcdgh"(I(2), hz, I(2)), (4,4,4,4)))
         ap /= norm(ap)
         hx = atype(reshape(permutedims(hx, (1,3,2,4)), (4,4)))
         hy = atype(reshape(ein"ae,bfcg,dh -> abefcdgh"(I(2), hy, I(2)), (4,4,4,4)))
@@ -94,6 +131,9 @@ function observable(model, fdirection, field, type, folder, atype, D, χ, tol, m
             lr = oc1(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,jr],ARu[:,:,:,i,jr],ap[i,jr],ARd[:,:,:,ir,jr])
             e = Array(ein"pqrs, pqrs -> "(lr,hz))[]
             n =  Array(ein"pprr -> "(lr))[]
+            println("xx = $(Array(ein"pqrs, pqrs -> "(lr,Sx))[]/n)")
+            println("yy = $(Array(ein"pqrs, pqrs -> "(lr,Sy))[]/n)")
+            println("zz = $(Array(ein"pqrs, pqrs -> "(lr,Sz))[]/n)")
             println("hz = $(e/n)")
             Ez   += e/n
             etol += e/n
@@ -118,7 +158,7 @@ function observable(model, fdirection, field, type, folder, atype, D, χ, tol, m
         etol = real(etol/(Ni * Nj))
         # ΔE = real(Ex - (Ey + Ez)/2)
 
-        message = "E     = $(etol)\nEx    = $(Ex)\nEy    = $(Ey)\nEz    = $(Ez)\n"
+        message = "E     = $(etol)\nEx    = $(Ex)\nEy    = $(Ey)\nEz    = $(Ez)\nξ    = $(ξ)\n"
         write(logfile, message)
         close(logfile)
     end
