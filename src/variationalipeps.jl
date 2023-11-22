@@ -10,27 +10,55 @@ using TeneT: ALCtoAC
 using CUDA
 
 export init_ipeps, energy, optimiseipeps
+"""
+   │     │                 a     b 
+───┼─────┼───           c ─┼─ d ─┼─ e
+   │   ╱ │                 │ ╲   │
+   │  ╱  │                 f  m  g 
+   │ ╱   │                 │   ╲ │
+───┼─────┼───           h ─┼─ i ─┼─ j
+   │     │                 k     l
+"""
+function buildM(ipeps, atype)
+    D = size(ipeps,1)
+    d = size(ipeps,5)
+    ID = Matrix{Float64}(I, D, D)
+    Id = Matrix{Float64}(I, d, d)
+    M11 = ein"ae, bf, cd -> abcdef"(ID, ID, Id)
+    M11 = reshape(M11, D, D*d, D*d, D)
+    M12 = permutedims(conj(ipeps), (5,1,2,3,4))
+    M12 = reshape(M12, D*d, D, D, D)
+    M21 = reshape(ipeps, D, D, D, D*d)
+    M22 = ein"ac, bd -> abcd"(ID, ID)
+    reshape([atype(M11), atype(M21), atype(M12), atype(M22)], 2,2)
+end
+
 
 """
-    energy(h, bulk, oc, key; savefile = true, show_every = Inf)
+    energy(h, ipeps, oc, key; savefile = true, show_every = Inf)
 
 return the energy of the `bcipeps` 2-site hamiltonian `h` and calculated via a
 TeneT with parameters `χ`, `tol` and `maxiter`.
 """
-function energy(h, bulk, oc, key; savefile = true, show_every = Inf)
+function energy(h, ipeps, oc, key; savefile = true, show_every = Inf)
     folder, _, _, atype, Ni, Nj, D, χ, tol, maxiter, miniter, ifcheckpoint, verbose = key
     # bcipeps = indexperm_symmetrize(bcipeps)  # NOTE: this is not good
-    ap = [ein"abcdx,ijkly -> aibjckdlxy"(bulk[i], conj(bulk[i])) for i = 1:Ni*Nj]
+    ipeps /= norm(ipeps)
+    ipeps = reshape([ipeps[:,:,:,:,:,i] for i = 1:Ni*Nj], (Ni, Nj))
+    ap = [ein"abcdx,ijkly -> aibjckdlxy"(ipeps[i], conj(ipeps[i])) for i = 1:Ni*Nj]
     ap = [reshape(ap[i], D^2, D^2, D^2, D^2, 4, 4) for i = 1:Ni*Nj]
     ap = reshape(ap, Ni, Nj)
     
-    a = Zygote.Buffer(ap[1], D^2,D^2,D^2,D^2,Ni,Nj)
-    for j in 1:Nj, i in 1:Ni
-        a[:,:,:,:,i,j] = ein"ijklaa -> ijkl"(ap[i,j])
-    end
-    a = copy(a)
+    # a = Zygote.Buffer(ap, Ni,Nj)
+    # for j in 1:Nj, i in 1:Ni
+    #     a[i,j] = ein"ijklaa -> ijkl"(ap[i,j])
+    # end
+    # a = copy(a)
 
-    env = obs_env(a; χ = χ, tol = tol, maxiter = maxiter, miniter = miniter, verbose = verbose, savefile = savefile, infolder = folder, outfolder = folder, savetol = 1e-3, show_every = show_every)
+    # a = reshape([ein"ijklaa -> ijkl"(ap[i]) for i in 1:Ni*Nj], Ni, Nj)
+    a = buildM(ipeps[1], atype)
+
+    env = obs_env(a; χ = χ, tol = tol, maxiter = maxiter, miniter = miniter, verbose = verbose, savefile = savefile, infolder = folder, outfolder = folder, savetol = 1, show_every = show_every)
     e = ifcheckpoint ? checkpoint(expectationvalue, h, ap, env, oc, key) : expectationvalue(h, ap, env, oc, key)
     return e
 end
@@ -68,7 +96,7 @@ described by rank-6 tensor `ap` each and an environment described by
 a `SquareBCVUMPSRuntime` `env`.
 """
 function expectationvalue(h, ap, env, oc, key)
-    _, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR, FLu, FRu = env
+    _, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FLu, FRu = env
     _, _, field, atype, Ni, Nj, _, _, _, _, _, _, verbose = key
     oc1, oc2 = oc
     ACu = ALCtoAC(ALu, Cu)
@@ -82,17 +110,29 @@ function expectationvalue(h, ap, env, oc, key)
         hz = atype(reshape(ein"ae,bfcg,dh -> abefcdgh"(I(2), hz, I(2)), (4,4,4,4)))
     end
 
+    χ, D, _ = size(ALu[1,1])
+    LARu = reshape(ein"adb, bec -> adec"(ARu[1,1],ARu[1,2]), (χ, D^2, χ))
+    LARd = reshape(ein"adb, bec -> adec"(ARd[1,1],ARd[1,2]), (χ, D^2, χ))
+    LACu = reshape(ein"adb,bf,fec -> adec"(ALu[1,1],Cu[1,1],ARu[1,2]), (χ, D^2, χ))
+    LACd = reshape(ein"adb,bf,fec -> adec"(ALd[1,1],Cd[1,1],ARd[1,2]), (χ, D^2, χ))
+
+    LFLu = reshape(ein"adb, bec -> aedc"(FLu[1,1],FLu[2,1]), (χ, D^2, χ))
+    LFRu = reshape(ein"adb, bec -> aedc"(FRu[1,2],FRu[2,2]), (χ, D^2, χ))
+    LFLo = reshape(ein"adb, bec -> aedc"(FLu[1,1],FLo[2,1]), (χ, D^2, χ))
+    LFRo = reshape(ein"adb, bec -> aedc"(FRu[1,2],FRo[2,2]), (χ, D^2, χ))
+
     for j = 1:Nj, i = 1:Ni
         verbose && println("===========$i,$j===========")
         ir = Ni + 1 - i
         jr = j + 1 - (j==Nj) * Nj
-        lr = oc1(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,jr],ARu[:,:,:,i,jr],ap[i,jr],ARd[:,:,:,ir,jr])
+        lr = oc1(LFLo,LACu,ap[1],conj(LACd),LFRo,LARu,ap[1],conj(LARd))
+
         e = Array(ein"pqrs, pqrs -> "(lr,hz))[]
         n = Array(ein"pprr -> "(lr))[]
         verbose && println("hz = $(e/n)")
         etol += e/n
 
-        lr = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,j])
+        lr = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(LFLo,LACu,ap[1],conj(LACd),LFRo)
         e = Array(ein"pq, pq -> "(lr,hx))[]
         n = Array(ein"pp -> "(lr))[]
         verbose && println("hx = $(e/n)")
@@ -100,7 +140,7 @@ function expectationvalue(h, ap, env, oc, key)
 
         ir  =  i + 1 - (i==Ni) * Ni
         irr = Ni - i + (i==Ni) * Ni
-        lr = oc2(ACu[:,:,:,i,j],FLu[:,:,:,i,j],ap[i,j],FRu[:,:,:,i,j],FL[:,:,:,ir,j],ap[ir,j],FR[:,:,:,ir,j],ACd[:,:,:,irr,j])
+        lr = oc2(LACu,LFLu,ap[1],LFRu,LFLo,ap[1],LFRo,conj(LACd))
         e = Array(ein"pqrs, pqrs -> "(lr,hy))[]
         n =  Array(ein"pprr -> "(lr))[]
         verbose && println("hy = $(e/n)")
@@ -119,7 +159,7 @@ function expectationvalue(h, ap, env, oc, key)
         end
         for j = 1:Nj, i = 1:Ni
             ir = Ni + 1 - i
-            lr3 = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,j])
+            lr3 = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[i,j],ACu[i,j],ap[i,j],ACd[ir,j],FR[i,j])
             Mx1 = ein"pq, pq -> "(lr3,atype(Sx1))
             Mx2 = ein"pq, pq -> "(lr3,atype(Sx2))
             My1 = ein"pq, pq -> "(lr3,atype(Sy1))
@@ -152,10 +192,7 @@ checkerboard pattern
 """
 ito12(i,Ni) = mod(mod(i,Ni) + Ni*(mod(i,Ni)==0) + fld(i,Ni) + 1 - (mod(i,Ni)==0), 2) + 1
 
-function buildbcipeps(bulk,Ni,Nj)
-    bulk /= norm(bulk)
-    reshape([bulk[:,:,:,:,:,i] for i = 1:Ni*Nj], (Ni, Nj))
-end
+
 
 """
     init_ipeps(model::HamiltonianModel; D::Int, χ::Int, tol::Real, maxiter::Int)
@@ -188,27 +225,27 @@ function init_ipeps(model::HamiltonianModel,
     mkpath(folder)
     chkp_file = folder*"D$(D)_chi$(χ)_tol$(tol)_maxiter$(maxiter)_miniter$(miniter).jld2"
     if isfile(chkp_file)
-        bulk = load(chkp_file)["bcipeps"]
+        ipeps = load(chkp_file)["bcipeps"]
         verbose && println("load BCiPEPS from $chkp_file")
     else
-        bulk = rand(ComplexF64,D,D,D,D,4,Ni*Nj)
+        ipeps = rand(ComplexF64,D,D,D,D,4,Ni*Nj)
         verbose && println("random initial BCiPEPS $chkp_file")
     end
-    bulk /= norm(bulk)
+    ipeps /= norm(ipeps)
     key = (folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter, miniter, ifcheckpoint, verbose)
-    return bulk, key
+    return ipeps, key
 end
 
 """
     optimiseipeps(bcipeps, h; χ, tol, maxiter, optimargs = (), optimmethod = LBFGS(m = 20))
 
-return the tensor `bulk'` that describes an bcipeps that minimises the energy of the
+return the tensor `ipeps'` that describes an bcipeps that minimises the energy of the
 two-site hamiltonian `h`. The minimization is done using `Optim` with default-method
 `LBFGS`. Alternative methods can be specified by loading `LineSearches` and
 providing `optimmethod`. Other options to optim can be passed with `optimargs`.
 The energy is calculated using vumps with key include parameters `χ`, `tol` and `maxiter`.
 """
-function optimiseipeps(bulk, key; 
+function optimiseipeps(ipeps, key; 
                        f_tol = 1e-6, opiter = 100, 
                        maxiter_ad = 10,
                        miniter_ad = 1,
@@ -221,8 +258,8 @@ function optimiseipeps(bulk, key;
     h = hamiltonian(model)
     to = TimerOutput()
     oc = optcont(D, χ)
-    f(x) = @timeit to "forward" real(energy(h, buildbcipeps(atype(x),Ni,Nj), oc, key))
-    ff(x) = real(energy(h, buildbcipeps(atype(x),Ni,Nj), oc, keyback))
+    f(x) = @timeit to "forward" real(energy(h, atype(x), oc, key))
+    ff(x) = real(energy(h, atype(x), oc, keyback))
     function g(x)
         @timeit to "backward" begin
             println("for backward convergence:")
@@ -236,7 +273,7 @@ function optimiseipeps(bulk, key;
         end
     end
     res = optimize(f, g, 
-        bulk, optimmethod, inplace = false,
+        ipeps, optimmethod, inplace = false,
         Optim.Options(f_tol=f_tol, iterations=opiter,
         extended_trace=true,
         callback=os->writelog(os, key)),
