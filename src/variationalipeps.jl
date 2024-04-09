@@ -8,6 +8,7 @@ using TimerOutputs
 using TeneT
 using TeneT: ALCtoAC
 using CUDA
+using ADFPCM
 
 export init_ipeps, energy, optimiseipeps
 
@@ -30,7 +31,14 @@ function energy(h, bulk, oc, key; savefile = true, show_every = Inf)
     end
     a = copy(a)
 
-    env = obs_env(a; χ = χ, tol = tol, maxiter = maxiter, miniter = miniter, verbose = verbose, savefile = savefile, infolder = folder, outfolder = folder, savetol = 1e-3, show_every = show_every)
+    # env = obs_env(a; χ = χ, tol = tol, maxiter = maxiter, miniter = miniter, verbose = verbose, savefile = savefile, infolder = folder, outfolder = folder, savetol = 1e-3, show_every = show_every)
+    MArray = a[:,:,:,:,1,1]
+	Random.seed!(42)
+	env = ADFPCM.env(permutedims(MArray, (4,1,2,3)), 
+    ADFPCM.FPCM(tol = 1e-10, χ=χ, 
+                  maxiter=maxiter, miniter=miniter, 
+                  infolder = folder, verbose = false)
+    )
     e = ifcheckpoint ? checkpoint(expectationvalue, h, ap, env, oc, key) : expectationvalue(h, ap, env, oc, key)
     return e
 end
@@ -68,11 +76,27 @@ described by rank-6 tensor `ap` each and an environment described by
 a `SquareBCVUMPSRuntime` `env`.
 """
 function expectationvalue(h, ap, env, oc, key)
-    _, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR, FLu, FRu = env
+    # _, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR, FLu, FRu = env
     _, _, field, atype, Ni, Nj, _, _, _, _, _, _, verbose = key
     oc1, oc2 = oc
-    ACu = ALCtoAC(ALu, Cu)
-    ACd = ALCtoAC(ALd, Cd)
+    # ACu = ALCtoAC(ALu, Cu)
+    # ACd = ALCtoAC(ALd, Cd)
+
+    @unpack Cul, Cld, Cdr, Cru, Tu, Tl, Td, Tr = env
+	# save("./example/M.jld2", "M", MArray)
+    
+	ACu = ein"abc->cba"(Tu)
+    ACd = Td
+    ARu = ein"abc->cba"(Tu)
+    ARd = Td
+	FL = ein"(ab,bcd),de->ace"(Cul,Tl,Cld)
+	FR = ein"(ab,bcd),de->eca"(Cdr,Tr,Cru)
+
+	FLu = ein"ab,bcd->acd"(Cul,Tl)
+	FRu = ein"abc,cd->dba"(Tr,Cru)
+    FLd = ein"abc,cd->abd"(Tl,Cld)
+    FRd = ein"ab,bcd->dca"(Cdr,Tr)
+
     hx, hy, hz = h
     ap /= norm(ap)
     etol = 0
@@ -86,13 +110,14 @@ function expectationvalue(h, ap, env, oc, key)
         verbose && println("===========$i,$j===========")
         ir = Ni + 1 - i
         jr = j + 1 - (j==Nj) * Nj
-        lr = oc1(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,jr],ARu[:,:,:,i,jr],ap[i,jr],ARd[:,:,:,ir,jr])
+        lr = oc1(FL,ACu,ap[i,j],ACd,FR,ARu,ap[i,jr],ARd)
+
         e = Array(ein"pqrs, pqrs -> "(lr,hz))[]
         n = Array(ein"pprr -> "(lr))[]
         verbose && println("hz = $(e/n)")
         etol += e/n
 
-        lr = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL[:,:,:,i,j],ACu[:,:,:,i,j],ap[i,j],ACd[:,:,:,ir,j],FR[:,:,:,i,j])
+        lr = ein"(((aeg,abc),ehfbpq),ghi),cfi -> pq"(FL,ACu,ap[i,j],ACd,FR)
         e = Array(ein"pq, pq -> "(lr,hx))[]
         n = Array(ein"pp -> "(lr))[]
         verbose && println("hx = $(e/n)")
@@ -100,7 +125,7 @@ function expectationvalue(h, ap, env, oc, key)
 
         ir  =  i + 1 - (i==Ni) * Ni
         irr = Ni - i + (i==Ni) * Ni
-        lr = oc2(ACu[:,:,:,i,j],FLu[:,:,:,i,j],ap[i,j],FRu[:,:,:,i,j],FL[:,:,:,ir,j],ap[ir,j],FR[:,:,:,ir,j],ACd[:,:,:,irr,j])
+        lr = oc2(ACu,FLu,ap[i,j],FRu,FLd,ap[ir,j],FRd,ACd)
         e = Array(ein"pqrs, pqrs -> "(lr,hy))[]
         n =  Array(ein"pprr -> "(lr))[]
         verbose && println("hy = $(e/n)")
@@ -213,7 +238,8 @@ function optimiseipeps(bulk, key;
                        maxiter_ad = 10,
                        miniter_ad = 1,
                        verbose = false, 
-                       optimmethod = LBFGS(m = 20)
+                       optimmethod = LBFGS(m = 20,
+                       alphaguess=LineSearches.InitialStatic(alpha=1,scaled=true))
                        )
 
     folder, model, field, atype, Ni, Nj, D, χ, tol, maxiter, miniter, ifcheckpoint, verbose = key
