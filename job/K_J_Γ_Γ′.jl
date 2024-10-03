@@ -7,6 +7,7 @@ using Test
 using OMEinsum
 using Optim
 using Zygote
+using LinearAlgebra
 CUDA.allowscalar(false)
 
 function parse_commandline()
@@ -20,7 +21,7 @@ function parse_commandline()
         "--maxiter"
             help = "max iterition for vumps"
             arg_type = Int
-            default = 10
+            default = 50
         "--miniter"
             help = "min iterition for vumps"
             arg_type = Int
