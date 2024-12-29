@@ -6,16 +6,16 @@ using TeneT
 #####################################    parameters      ###################################
 Random.seed!(42)
 atype = CuArray
-Ni, Nj = 1, 1
-D, χ = 2, 10
-No = 10
-S = 1.0
+Ni, Nj = 2, 6
+D, χ = 4, 50
+No = 0
+S = 1.5
 ifWp = false
 ϵ = 5*1e-1
 model = Kitaev(S,1.0,1.0,1.0)
 Dz = 0.0
-# method = :brickwall
-method = :merge
+method = :brickwall
+# method = :merge
 folder = "data/$method/Dz$Dz/$model/$(Ni)x$(Nj)/"
 
 boundary_alg = VUMPS(ifupdown=true,
@@ -35,8 +35,8 @@ params = iPEPSOptimize{method}(boundary_alg=boundary_alg,
                                tol=1e-10,
                                folder=folder
 )
-A = init_ipeps(;atype, model, params, No, ifWp, ϵ, D, χ, Ni, Nj)
-# A = AD_Kitaev.init_ipeps_h5(;atype, model, file="./data/kitsShf_sikh2nfcr7D8D8.h5", D, Ni, Nj)
+# A = init_ipeps(;atype, model, params, No, ifWp, ϵ, D, χ, Ni, Nj)
+A = AD_Kitaev.init_ipeps_h5(;atype, params, ifWp=false, ifreal=true, model, file="./data/kitsShf_sikh3nfr1D4D4.h5", D, Ni, Nj)
 ############################################################################################
 
 e, mag = observable(A, model, Dz, χ, params)

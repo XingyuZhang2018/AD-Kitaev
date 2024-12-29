@@ -50,24 +50,41 @@ function init_ipeps_spin111(;atype = Array, model, params::iPEPSOptimize{F}, No:
     return atype(A)
 end
 
-function init_ipeps_h5(;atype = Array, model, file, D::Int, Ni::Int, Nj::Int)
+function init_ipeps_h5(;atype = Array, params, model, ϵ=0, ifWp=false, ifreal=false, file, D::Int, Ni::Int, Nj::Int)
     d = Int(2*model.S + 1) 
     A = zeros(ComplexF64, D,1,D,D,d, Ni,Nj)
     for i in 1:Ni, j in 1:Nj
         if (i+j) % 2 == 0
-            A[:,:,:,:,:,i,j] = permutedims(h5open(file, "r") do file
-                read(file, "$i$(7-j)r")
-            end + 1im * h5open(file, "r") do file
-                read(file, "$i$(7-j)i")
+            if ifreal
+                A[:,:,:,:,:,i,j] = permutedims(h5open(file, "r") do file
+                    read(file, "$i$(7-j)r")
+                end
+                , (5,2,3,4,1))
+            else
+                A[:,:,:,:,:,i,j] = permutedims(h5open(file, "r") do file
+                    read(file, "$i$(7-j)r")
+                end + 1im * h5open(file, "r") do file
+                    read(file, "$i$(7-j)i")
+                end
+                , (5,2,3,4,1))
             end
-            , (5,2,3,4,1))
         else
-            A[:,:,:,:,:,i,j] = permutedims(h5open(file, "r") do file
-                read(file, "$i$(7-j)r")
-            end + 1im * h5open(file, "r") do file
-                read(file, "$i$(7-j)i")
-            end, (3,4,5,2,1))
+            if ifreal
+                A[:,:,:,:,:,i,j] = permutedims(h5open(file, "r") do file
+                    read(file, "$i$(7-j)r")
+                end, (3,4,5,2,1))
+            else
+                A[:,:,:,:,:,i,j] = permutedims(h5open(file, "r") do file
+                    read(file, "$i$(7-j)r")
+                end + 1im * h5open(file, "r") do file
+                    read(file, "$i$(7-j)i")
+                end, (3,4,5,2,1))
+            end
         end
+    end
+    if ifWp
+        Wp = _arraytype(A)(bulid_Wp(model.S, params))
+        A = bulid_A(A + randn(ComplexF64, size(A)) * ϵ, Wp, params) 
     end
     return atype(A)
 end
