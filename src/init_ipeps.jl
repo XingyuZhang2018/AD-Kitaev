@@ -53,6 +53,7 @@ end
 function init_ipeps_h5(;atype = Array, params, model, ϵ=0, ifWp=false, ifreal=false, file, D::Int, Ni::Int, Nj::Int)
     d = Int(2*model.S + 1) 
     A = zeros(ComplexF64, D,1,D,D,d, Ni,Nj)
+    @info "load SU init ipeps from $file"
     for i in 1:Ni, j in 1:Nj
         if (i+j) % 2 == 0
             if ifreal
