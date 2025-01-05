@@ -8,6 +8,8 @@
     folder::String = Defaults.folder
     show_every::Int = Defaults.show_every
     save_every::Int = Defaults.save_every
+    ifflatten::Bool = true
+    ifcheckpoint::Bool = false
 end
 
 """
@@ -49,7 +51,7 @@ function optimise_ipeps(A::AbstractArray, model, χ::Int, params::iPEPSOptimize;
     function f(A) 
         A = restriction_ipeps(A)
         ifWp && (A = bulid_A(A, Wp, params))
-        return real(energy(A, model, Dz, rt, oc, params))
+        return params.ifcheckpoint ? real(checkpoint(energy, A, model, Dz, rt, oc, params)) : real(energy(A, model, Dz, rt, oc, params))
     end
     function g(A)
         # f(x)

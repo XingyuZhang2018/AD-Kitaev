@@ -60,7 +60,7 @@ function energy_value(model, Dz, A, M, env, oc, params::iPEPSOptimize{:merge})
         ir = Ni + 1 - i
         jr = mod1(j + 1, Nj)
         Mp1 = bulid_Mp(A[:,:,:,:,:,i,j], atype(Jx * reshape(ein"ac,bd->abcd"(I(d), Sx), d^2,d^2)), params)
-        Mp2 = bulid_Mp(A[:,:,:,:,:,i,jr], atype(Jx * reshape(ein"ac,bd->abcd"(Sx, I(d)), d^2,d^2)), params)
+        Mp2 = bulid_Mp(A[:,:,:,:,:,i,jr], atype(reshape(ein"ac,bd->abcd"(Sx, I(d)), d^2,d^2)), params)
         e = sum(oc_H(FLo[i,j],ACu[i,j],Mp1,conj(ACd[ir,j]),FRo[i,jr],ARu[i,jr],Mp2,conj(ARd[ir,jr])))
         n = sum(oc_H(FLo[i,j],ACu[i,j],M[i,j],conj(ACd[ir,j]),FRo[i,jr],ARu[i,jr],M[i,jr],conj(ARd[ir,jr])))
         params.verbosity >= 4 && println("hx = $(e/n)")
@@ -77,11 +77,10 @@ function energy_value(model, Dz, A, M, env, oc, params::iPEPSOptimize{:merge})
         end
         params.verbosity >= 4 && println("hz = $(e/n)")
         
-
         ir  = mod1(i + 1, Ni)
         irr = mod1(Ni - i, Ni) 
         Mp1 = bulid_Mp(A[:,:,:,:,:,i,j], atype(Jy * reshape(ein"ac,bd->abcd"(I(d), Sy), d^2,d^2)), params)
-        Mp2 = bulid_Mp(A[:,:,:,:,:,ir,j], atype(Jy * reshape(ein"ac,bd->abcd"(Sy, I(d)), d^2,d^2)), params)
+        Mp2 = bulid_Mp(A[:,:,:,:,:,ir,j], atype(reshape(ein"ac,bd->abcd"(Sy, I(d)), d^2,d^2)), params)
         e = sum(oc_V(ACu[i,j],FLu[i,j],Mp1,FRu[i,j],FLo[ir,j],Mp2,FRo[ir,j],conj(ACd[irr,j])))
         n = sum(oc_V(ACu[i,j],FLu[i,j],M[i,j],FRu[i,j],FLo[ir,j],M[ir,j],FRo[ir,j],conj(ACd[irr,j])))
         params.verbosity >= 4 && println("hy = $(e/n)")
@@ -115,15 +114,15 @@ function energy_value(model, Dz, A, M, env, oc, params::iPEPSOptimize{:brickwall
             ir  = mod1(i + 1, Ni)
             irr = mod1(Ni - i, Ni) 
             Mp1 = bulid_Mp(A[:,:,:,:,:,i,j], atype(model.Jy * Sy), params, i, j)
-            Mp2 = bulid_Mp(A[:,:,:,:,:,ir,j], atype(model.Jy * Sy), params, ir, j)
+            Mp2 = bulid_Mp(A[:,:,:,:,:,ir,j], atype(Sy), params, ir, j)
             e = sum(oc_V(ACu[i,j],FLu[i,j],Mp1,FRu[i,j],FLo[ir,j],Mp2,FRo[ir,j],conj(ACd[irr,j])))
             n = sum(oc_V(ACu[i,j],FLu[i,j],M[i,j],FRu[i,j],FLo[ir,j],M[ir,j],FRo[ir,j],conj(ACd[irr,j])))
             params.verbosity >= 4 && println("hy = $(e/n)")
             etol += e/n
 
-            O_H = model.Jx * Sx
+            O_H = sqrt(model.Jx) * Sx
         else
-            O_H = model.Jz * Sz
+            O_H = sqrt(model.Jz) * Sz
         end
 
         ir = Ni + 1 - i
