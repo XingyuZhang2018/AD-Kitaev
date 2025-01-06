@@ -29,9 +29,9 @@ boundary_alg = VUMPS(ifupdown=true,
 params = iPEPSOptimize{method}(boundary_alg=boundary_alg,
                                reuse_env=true, 
                                ifcheckpoint = true, 
-                               ifflatten=true,
+                               ifflatten=false,
                                verbosity=4, 
-                               maxiter=1,
+                               maxiter=100,
                                tol=1e-10,
                                folder=folder
 )

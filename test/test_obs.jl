@@ -30,6 +30,7 @@ boundary_alg = VUMPS(ifupdown=true,
 )
 params = iPEPSOptimize{method}(boundary_alg=boundary_alg,
                                reuse_env=true, 
+                               ifflatten=false,
                                verbosity=4, 
                                maxiter=1000,
                                tol=1e-10,
