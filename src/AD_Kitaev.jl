@@ -13,7 +13,8 @@ using Zygote
 using TeneT
 using HDF5
 
-using TeneT: ALCtoAC, _arraytype, update!, checkpoint
+using TeneT: _arraytype, update!, checkpoint, leg3, leg4
+using TeneT: ALCtoAC
 
 export Heisenberg
 export hamiltonian
@@ -26,7 +27,7 @@ include("hamiltonian_models.jl")
 include("optimise_ipeps.jl")
 include("init_ipeps.jl")
 include("wp_operator.jl")
-include("build_M.jl")
+include("build_A_M.jl")
 include("observable.jl")
 
 end

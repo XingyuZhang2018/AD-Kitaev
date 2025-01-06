@@ -1,8 +1,6 @@
-using OMEinsumContractionOrders
-
 """
-    oc_H, oc_V = optcont(D::Int, χ::Int)
-optimise the follow two einsum contractions for the given `D` and `χ` which are used to calculate the energy of the 2-site hamiltonian:
+two-site contraction
+
 ```
                                             a ────┬──── c          
 a ────┬──c ──┬──── f                        │     b     │  
@@ -12,30 +10,67 @@ a ────┬──c ──┬──── f                        │     
 j ────┴──l ──┴──── o                        │     m     │ 
                                             l ────┴──── n 
 ```
-where the central two block are six order tensor have extra bond `pq` and `rs`
 """
-function optcont(D::Int, χ::Int)
-    sd = Dict('a' => χ, 'b' => D^2,'c' => χ, 'e' => D^2, 'f' => χ, 'g' => D^2, 'h' => D^2, 'i' => D^2, 'j' => χ, 'k' => D^2, 'l' => χ, 'n' => D^2, 'o' => χ, 'p' => 2, 'q' => 2, 'r' => 2, 's' => 2)
-    # for seed =20:100
-    seed = 60
-	Random.seed!(seed)
-	# oc_H = optimize_code(ein"agj,abc,gkhbpq,jkl,fio,cef,hniers,lno -> pqrs", sd, TreeSA())
-    oc_H = ein"(((agj,abc),gkhb),jkl),(((fio,cef),hnie),lno) -> "
-	# print("Horizontal Contraction Complexity(seed=$(seed))",OMEinsum.timespace_complexity(oc_H,sd),"\n")
-    
-    sd = Dict('a' => χ, 'b' => D^2, 'c' => χ, 'e' => D^2, 'f' => D^2, 'g' => χ, 'h' => D^2, 'i' => χ, 'j' => D^2, 'k' => D^2, 'l' => χ, 'm' => D^2, 'n' => χ, 'r' => 2, 's' => 2, 'p' => 2, 'q' => 2)
-    # oc_V = optimize_code(ein"abc,aeg,ehfbpq,cfi,gjl,jmkhrs,ikn,lmn -> pqrs", sd, TreeSA())
-    oc_V = ein"(((abc,aeg),ehfb),cfi),(gjl,(jmkh,(ikn,lmn))) -> "
-    # print("Vertical Contraction Complexity(seed=$(seed))",OMEinsum.timespace_complexity(oc_V,sd),"\n") 
-    oc_H, oc_V
+oc_H_leg3 = ein"(((agj,abc),gkhb),jkl),(((fio,cef),hnie),lno) -> "
+oc_V_leg3 = ein"(((abc,aeg),ehfb),cfi),(gjl,(jmkh,(ikn,lmn))) -> "
+
+function contract_n2_H(FLo::leg3, ACu, A1, ACd, FRo, ARu, A2, ARd)
+    D1,D2,D3,D4,_ = size(A1)
+    M1 = reshape(ein"abcde,fghme->afbgchdm"(A1, conj(A1)), D1^2,D2^2,D3^2,D4^2)
+    D1,D2,D3,D4,_ = size(A2)
+    M2 = reshape(ein"abcde,fghme->afbgchdm"(A2, conj(A2)), D1^2,D2^2,D3^2,D4^2)
+    return sum(oc_H_leg3(FLo, ACu, M1, ACd, FRo, ARu, M2, ARd))
 end
 
-function bulid_Mp(A, O, ::iPEPSOptimize{:merge})
-    D = size(A, 1)
-    return reshape(ein"(abcde,en),fghmn->afbgchdm"(A, O, conj(A)), D^2, D^2, D^2, D^2)
+function contract_o2_H(FLo::leg3, ACu, A1, ACd, FRo, ARu, A2, ARd, O1, O2)
+    D1,D2,D3,D4,_ = size(A1)
+    M1 = reshape(ein"(abcde,en),fghmn->afbgchdm"(A1, O1, conj(A1)), D1^2,D2^2,D3^2,D4^2)
+    D1,D2,D3,D4,_ = size(A2)
+    M2 = reshape(ein"(abcde,en),fghmn->afbgchdm"(A2, O2, conj(A2)), D1^2,D2^2,D3^2,D4^2)
+    return sum(oc_H_leg3(FLo, ACu, M1, ACd, FRo, ARu, M2, ARd))
 end
 
-function energy_value(model, Dz, A, M, env, oc, params::iPEPSOptimize{:merge})
+function contract_n2_V(ACu::leg3, FLu, A1, FRu, FLo, A2, FRo, ACd)
+    D1,D2,D3,D4,_ = size(A1)
+    M1 = reshape(ein"abcde,fghme->afbgchdm"(A1, conj(A1)), D1^2,D2^2,D3^2,D4^2)
+    D1,D2,D3,D4,_ = size(A2)
+    M2 = reshape(ein"abcde,fghme->afbgchdm"(A2, conj(A2)), D1^2,D2^2,D3^2,D4^2)
+    return sum(oc_V_leg3(ACu, FLu, M1, FRu, FLo, M2, FRo, ACd))
+end
+
+function contract_o2_V(ACu::leg3, FLu, A1, FRu, FLo, A2, FRo, ACd, O1, O2)
+    D1,D2,D3,D4,_ = size(A1)
+    M1 = reshape(ein"(abcde,en),fghmn->afbgchdm"(A1, O1, conj(A1)), D1^2,D2^2,D3^2,D4^2)
+    D1,D2,D3,D4,_ = size(A2)
+    M2 = reshape(ein"(abcde,en),fghmn->afbgchdm"(A2, O2, conj(A2)), D1^2,D2^2,D3^2,D4^2)
+    return sum(oc_V_leg3(ACu, FLu, M1, FRu, FLo, M2, FRo, ACd))
+end
+
+"""
+one-site contraction
+
+```                         
+a ────┬──── c                      
+│     b     │                      
+├─ e ─┼─ f ─┤                      
+│     h     │                      
+g ────┴──── i                      
+                            
+```
+"""
+function contract_n1(FLo::leg3, ACu, A, ACd, FRo)
+    D1,D2,D3,D4,_ = size(A)
+    M = reshape(ein"abcde,fghme->afbgchdm"(A, conj(A)), D1^2,D2^2,D3^2,D4^2)
+    return sum(ein"(((aeg,abc),ehfb),ghi),cfi -> "(FLo, ACu, M, ACd, FRo))
+end
+
+function contract_o1(FLo::leg3, ACu, A, ACd, FRo, O)
+    D1,D2,D3,D4,_ = size(A)
+    M = reshape(ein"(abcde,en),fghmn->afbgchdm"(A, O, conj(A)), D1^2,D2^2,D3^2,D4^2)
+    return sum(ein"(((aeg,abc),ehfb),ghi),cfi -> "(FLo, ACu, M, ACd, FRo))
+end
+
+function energy_value(model, Dz, A, env, params::iPEPSOptimize{:merge})
     @unpack ACu, ARu, ACd, ARd, FLu, FRu, FLo, FRo = env
     atype = _arraytype(ACu[1])
     S = model.S
@@ -46,7 +81,6 @@ function energy_value(model, Dz, A, M, env, oc, params::iPEPSOptimize{:merge})
     Sz2 = Sz * Sz 
 
     Ni, Nj = size(ACu)
-    oc_H, oc_V = oc
     etol = 0
     for j = 1:Nj, i = 1:Ni
         if (i,j) in [(1,1),(2,2)]
@@ -59,30 +93,30 @@ function energy_value(model, Dz, A, M, env, oc, params::iPEPSOptimize{:merge})
         params.verbosity >= 4 && println("===========$i,$j===========")
         ir = Ni + 1 - i
         jr = mod1(j + 1, Nj)
-        Mp1 = bulid_Mp(A[:,:,:,:,:,i,j], atype(Jx * reshape(ein"ac,bd->abcd"(I(d), Sx), d^2,d^2)), params)
-        Mp2 = bulid_Mp(A[:,:,:,:,:,i,jr], atype(reshape(ein"ac,bd->abcd"(Sx, I(d)), d^2,d^2)), params)
-        e = sum(oc_H(FLo[i,j],ACu[i,j],Mp1,conj(ACd[ir,j]),FRo[i,jr],ARu[i,jr],Mp2,conj(ARd[ir,jr])))
-        n = sum(oc_H(FLo[i,j],ACu[i,j],M[i,j],conj(ACd[ir,j]),FRo[i,jr],ARu[i,jr],M[i,jr],conj(ARd[ir,jr])))
+        O1 = atype(Jx * reshape(ein"ac,bd->abcd"(I(d), Sx), d^2,d^2))
+        O2 = atype(reshape(ein"ac,bd->abcd"(Sx, I(d)), d^2,d^2))
+        e = contract_o2_H(FLo[i,j],ACu[i,j],A[i,j],conj(ACd[ir,j]),FRo[i,jr],ARu[i,jr],A[i,jr],conj(ARd[ir,jr]), O1, O2)
+        n = contract_n2_H(FLo[i,j],ACu[i,j],A[i,j],conj(ACd[ir,j]),FRo[i,jr],ARu[i,jr],A[i,jr],conj(ARd[ir,jr]))
         params.verbosity >= 4 && println("hx = $(e/n)")
         etol += e/n
 
-        Mp = bulid_Mp(A[:,:,:,:,:,i,j], atype(Jx * reshape(ein"ac,bd->abcd"(Sz, Sz) + Dz * ein"ac,bd->abcd"(I(d), Sz2) + Dz * ein"ac,bd->abcd"(Sz2, I(d)), d^2,d^2)), params)
-        e = sum(ein"(((aeg,abc),ehfb),ghi),cfi -> "(FLo[i,j],ACu[i,j],Mp,conj(ACd[ir,j]),FRo[i,j]))
-        n = sum(ein"(((aeg,abc),ehfb),ghi),cfi -> "(FLo[i,j],ACu[i,j],M[i,j],conj(ACd[ir,j]),FRo[i,j]))
+        O = atype(Jx * reshape(ein"ac,bd->abcd"(Sz, Sz) + Dz * ein"ac,bd->abcd"(I(d), Sz2) + Dz * ein"ac,bd->abcd"(Sz2, I(d)), d^2,d^2))
+        e = contract_o1(FLo[i,j],ACu[i,j],A[i,j],conj(ACd[ir,j]),FRo[i,j], O)
+        n = contract_n1(FLo[i,j],ACu[i,j],A[i,j],conj(ACd[ir,j]),FRo[i,j])
         etol += e/n
 
         if Dz != 0
-            Mp = bulid_Mp(A[:,:,:,:,:,i,j], atype(Jx * reshape(ein"ac,bd->abcd"(Sz, Sz), d^2,d^2)), params)
-            e = sum(ein"(((aeg,abc),ehfb),ghi),cfi -> "(FLo[i,j],ACu[i,j],Mp,conj(ACd[ir,j]),FRo[i,j]))
+            O = atype(Jx * reshape(ein"ac,bd->abcd"(Sz, Sz), d^2,d^2))
+            e =  contract_o1(FLo[i,j],ACu[i,j],Mp,conj(ACd[ir,j]),FRo[i,j], O)
         end
         params.verbosity >= 4 && println("hz = $(e/n)")
         
         ir  = mod1(i + 1, Ni)
         irr = mod1(Ni - i, Ni) 
-        Mp1 = bulid_Mp(A[:,:,:,:,:,i,j], atype(Jy * reshape(ein"ac,bd->abcd"(I(d), Sy), d^2,d^2)), params)
-        Mp2 = bulid_Mp(A[:,:,:,:,:,ir,j], atype(reshape(ein"ac,bd->abcd"(Sy, I(d)), d^2,d^2)), params)
-        e = sum(oc_V(ACu[i,j],FLu[i,j],Mp1,FRu[i,j],FLo[ir,j],Mp2,FRo[ir,j],conj(ACd[irr,j])))
-        n = sum(oc_V(ACu[i,j],FLu[i,j],M[i,j],FRu[i,j],FLo[ir,j],M[ir,j],FRo[ir,j],conj(ACd[irr,j])))
+        O1 = atype(Jy * reshape(ein"ac,bd->abcd"(I(d), Sy), d^2,d^2))
+        O2 = atype(reshape(ein"ac,bd->abcd"(Sy, I(d)), d^2,d^2))
+        e = contract_o2_V(ACu[i,j],FLu[i,j],A[i,j],FRu[i,j],FLo[ir,j],A[ir,j],FRo[ir,j],conj(ACd[irr,j]), O1, O2)
+        n = contract_n2_V(ACu[i,j],FLu[i,j],A[i,j],FRu[i,j],FLo[ir,j],A[ir,j],FRo[ir,j],conj(ACd[irr,j]))
         params.verbosity >= 4 && println("hy = $(e/n)")
         etol += e/n
     end
@@ -91,12 +125,7 @@ function energy_value(model, Dz, A, M, env, oc, params::iPEPSOptimize{:merge})
     return etol/Ni/Nj/2
 end
 
-function bulid_Mp(A, O, ::iPEPSOptimize{:brickwall}, i, j)
-    D = size(A, 1)
-    return (i+j) % 2 == 0 ? reshape(ein"(abcde,en),fghmn->afbgchdm"(A, O, conj(A)), D^2,1,D^2,D^2) : (A = permutedims(A, (3,4,1,2,5)); reshape(ein"(abcde,en),fghmn->afbgchdm"(A, O, conj(A)), D^2,D^2,D^2,1))
-end
-
-function energy_value(model, Dz, A, M, env, oc, params::iPEPSOptimize{:brickwall})
+function energy_value(model, Dz, A, env, params::iPEPSOptimize{:brickwall})
     @unpack ACu, ARu, ACd, ARd, FLu, FRu, FLo, FRo = env
     atype = _arraytype(ACu[1])
     S = model.S
@@ -106,17 +135,14 @@ function energy_value(model, Dz, A, M, env, oc, params::iPEPSOptimize{:brickwall
     Sz2 = Sz * Sz 
 
     Ni, Nj = size(ACu)
-    oc_H, oc_V = oc
     etol = 0
     for j = 1:Nj, i = 1:Ni
         params.verbosity >= 4 && println("===========$i,$j===========")
         if (i + j) % 2 != 0
             ir  = mod1(i + 1, Ni)
             irr = mod1(Ni - i, Ni) 
-            Mp1 = bulid_Mp(A[:,:,:,:,:,i,j], atype(model.Jy * Sy), params, i, j)
-            Mp2 = bulid_Mp(A[:,:,:,:,:,ir,j], atype(Sy), params, ir, j)
-            e = sum(oc_V(ACu[i,j],FLu[i,j],Mp1,FRu[i,j],FLo[ir,j],Mp2,FRo[ir,j],conj(ACd[irr,j])))
-            n = sum(oc_V(ACu[i,j],FLu[i,j],M[i,j],FRu[i,j],FLo[ir,j],M[ir,j],FRo[ir,j],conj(ACd[irr,j])))
+            e = contract_o2_V(ACu[i,j],FLu[i,j],A[i,j],FRu[i,j],FLo[ir,j],A[ir,j],FRo[ir,j],conj(ACd[irr,j]), atype(model.Jy * Sy), atype(Sy))
+            n = contract_n2_V(ACu[i,j],FLu[i,j],A[i,j],FRu[i,j],FLo[ir,j],A[ir,j],FRo[ir,j],conj(ACd[irr,j]))
             params.verbosity >= 4 && println("hy = $(e/n)")
             etol += e/n
 
@@ -127,17 +153,14 @@ function energy_value(model, Dz, A, M, env, oc, params::iPEPSOptimize{:brickwall
 
         ir = Ni + 1 - i
         jr = mod1(j + 1, Nj)
-        Mp1 = bulid_Mp(A[:,:,:,:,:,i,j],  atype(O_H), params, i,j)
-        Mp2 = bulid_Mp(A[:,:,:,:,:,i,jr],  atype(O_H), params, i,jr)
-        e = sum(oc_H(FLo[i,j],ACu[i,j],Mp1,conj(ACd[ir,j]),FRo[i,jr],ARu[i,jr],Mp2,conj(ARd[ir,jr])))
-        n = sum(oc_H(FLo[i,j],ACu[i,j],M[i,j],conj(ACd[ir,j]),FRo[i,jr],ARu[i,jr],M[i,jr],conj(ARd[ir,jr])))
+        e = contract_o2_H(FLo[i,j],ACu[i,j],A[i,j],conj(ACd[ir,j]),FRo[i,jr],ARu[i,jr],A[i,jr],conj(ARd[ir,jr]), atype(O_H), atype(O_H))
+        n = contract_n2_H(FLo[i,j],ACu[i,j],A[i,j],conj(ACd[ir,j]),FRo[i,jr],ARu[i,jr],A[i,jr],conj(ARd[ir,jr]))
         params.verbosity >= 4 && (i + j) % 2 != 0 ? println("hz = $(e/n)") : println("hx = $(e/n)")
         etol += e/n
 
         if Dz != 0
-            Mp = bulid_Mp(A[:,:,:,:,:,i,j], atype(Dz * Sz2), params, i, j)
-            e = sum(ein"(((aeg,abc),ehfb),ghi),cfi -> "(FLo[i,j],ACu[i,j],Mp,conj(ACd[ir,j]),FRo[i,j]))
-            n = sum(ein"(((aeg,abc),ehfb),ghi),cfi -> "(FLo[i,j],ACu[i,j],M[i,j],conj(ACd[ir,j]),FRo[i,j]))
+            e = contract_o1(FLo[i,j],ACu[i,j],A[i,j],conj(ACd[ir,j]),FRo[i,j], atype(Dz * Sz2))contract_o1
+            n = contract_n1(FLo[i,j],ACu[i,j],A[i,j],conj(ACd[ir,j]),FRo[i,j])
             etol += e/n
         end
     end
@@ -146,7 +169,7 @@ function energy_value(model, Dz, A, M, env, oc, params::iPEPSOptimize{:brickwall
     return etol/Ni/Nj
 end
 
-function magnetization_value(model, A, M, env, params::iPEPSOptimize{:merge})
+function magnetization_value(model, A, env, params::iPEPSOptimize{:merge})
     @unpack ACu, ARu, ACd, ARd, FLu, FRu, FLo, FRo = env
     atype = _arraytype(ACu[1])
     S = model.S
@@ -161,22 +184,22 @@ function magnetization_value(model, A, M, env, params::iPEPSOptimize{:merge})
     for j = 1:Nj, i = 1:Ni
         params.verbosity >= 4 && println("===========$i,$j===========")
         ir = Ni + 1 - i
-        Mpx1 = bulid_Mp(A[:,:,:,:,:,i,j], atype(reshape(ein"ac,bd->abcd"(Sx, I(d)), d^2,d^2)), params)
-        Mpx2 = bulid_Mp(A[:,:,:,:,:,i,j], atype(reshape(ein"ac,bd->abcd"(I(d), Sx), d^2,d^2)), params)
-        Mx1 = sum(ein"(((aeg,abc),ehfb),ghi),cfi -> "(FLo[i,j],ACu[i,j],Mpx1,conj(ACd[ir,j]),FRo[i,j]))
-        Mx2 = sum(ein"(((aeg,abc),ehfb),ghi),cfi -> "(FLo[i,j],ACu[i,j],Mpx2,conj(ACd[ir,j]),FRo[i,j]))
+        O1 = atype(reshape(ein"ac,bd->abcd"(Sx, I(d)), d^2,d^2))
+        O2 = atype(reshape(ein"ac,bd->abcd"(I(d), Sx), d^2,d^2))
+        Mx1 = contract_o1(FLo[i,j],ACu[i,j],A[i,j],conj(ACd[ir,j]),FRo[i,j], O1)
+        Mx2 = contract_o1(FLo[i,j],ACu[i,j],A[i,j],conj(ACd[ir,j]),FRo[i,j], O2)
 
-        Mpy1 = bulid_Mp(A[:,:,:,:,:,i,j], atype(reshape(ein"ac,bd->abcd"(Sy, I(d)), d^2,d^2)), params)
-        Mpy2 = bulid_Mp(A[:,:,:,:,:,i,j], atype(reshape(ein"ac,bd->abcd"(I(d), Sy), d^2,d^2)), params)
-        My1 = sum(ein"(((aeg,abc),ehfb),ghi),cfi -> "(FLo[i,j],ACu[i,j],Mpy1,conj(ACd[ir,j]),FRo[i,j]))
-        My2 = sum(ein"(((aeg,abc),ehfb),ghi),cfi -> "(FLo[i,j],ACu[i,j],Mpy2,conj(ACd[ir,j]),FRo[i,j]))
+        O1 = atype(reshape(ein"ac,bd->abcd"(Sy, I(d)), d^2,d^2))
+        O2 = atype(reshape(ein"ac,bd->abcd"(I(d), Sy), d^2,d^2))
+        My1 = contract_o1(FLo[i,j],ACu[i,j],A[i,j],conj(ACd[ir,j]),FRo[i,j], O1)
+        My2 = contract_o1(FLo[i,j],ACu[i,j],A[i,j],conj(ACd[ir,j]),FRo[i,j], O2)
 
-        Mpz1 = bulid_Mp(A[:,:,:,:,:,i,j], atype(reshape(ein"ac,bd->abcd"(Sz, I(d)), d^2,d^2)), params)
-        Mpz2 = bulid_Mp(A[:,:,:,:,:,i,j], atype(reshape(ein"ac,bd->abcd"(I(d), Sz), d^2,d^2)), params)
-        Mz1 = sum(ein"(((aeg,abc),ehfb),ghi),cfi -> "(FLo[i,j],ACu[i,j],Mpz1,conj(ACd[ir,j]),FRo[i,j]))
-        Mz2 = sum(ein"(((aeg,abc),ehfb),ghi),cfi -> "(FLo[i,j],ACu[i,j],Mpz2,conj(ACd[ir,j]),FRo[i,j]))
-        
-        n = sum(ein"(((aeg,abc),ehfb),ghi),cfi -> "(FLo[i,j],ACu[i,j],M[i,j],conj(ACd[ir,j]),FRo[i,j]))
+        O1 = atype(reshape(ein"ac,bd->abcd"(Sz, I(d)), d^2,d^2))
+        O2 = atype(reshape(ein"ac,bd->abcd"(I(d), Sz), d^2,d^2))
+        Mz1 = contract_o1(FLo[i,j],ACu[i,j],A[i,j],conj(ACd[ir,j]),FRo[i,j], O1)
+        Mz2 = contract_o1(FLo[i,j],ACu[i,j],A[i,j],conj(ACd[ir,j]),FRo[i,j], O2)
+
+        n = contract_n1(FLo[i,j],ACu[i,j],A[i,j],conj(ACd[ir,j]),FRo[i,j])
         Mag[i,j,1] = [Mx1/n, My1/n, Mz1/n]
         Mag[i,j,2] = [Mx2/n, My2/n, Mz2/n]
         Mnorm[i,j,1] = norm(Mag[i,j,1])
@@ -188,7 +211,7 @@ function magnetization_value(model, A, M, env, params::iPEPSOptimize{:merge})
     return Mag, Mnorm
 end
 
-function magnetization_value(model, A, M, env, params::iPEPSOptimize{:brickwall})
+function magnetization_value(model, A, env, params::iPEPSOptimize{:brickwall})
     @unpack ACu, ARu, ACd, ARd, FLu, FRu, FLo, FRo = env
     atype = _arraytype(ACu[1])
     S = model.S
@@ -202,16 +225,11 @@ function magnetization_value(model, A, M, env, params::iPEPSOptimize{:brickwall}
     for j = 1:Nj, i = 1:Ni
         params.verbosity >= 4 && println("===========$i,$j===========")
         ir = Ni + 1 - i
-        Mpx = bulid_Mp(A[:,:,:,:,:,i,j], atype(Sx), params, i, j)
-        Mx = sum(ein"(((aeg,abc),ehfb),ghi),cfi -> "(FLo[i,j],ACu[i,j],Mpx,conj(ACd[ir,j]),FRo[i,j]))
-
-        Mpy = bulid_Mp(A[:,:,:,:,:,i,j], atype(Sy), params, i, j)
-        My = sum(ein"(((aeg,abc),ehfb),ghi),cfi -> "(FLo[i,j],ACu[i,j],Mpy,conj(ACd[ir,j]),FRo[i,j]))
-
-        Mpz = bulid_Mp(A[:,:,:,:,:,i,j], atype(Sz), params, i, j)
-        Mz = sum(ein"(((aeg,abc),ehfb),ghi),cfi -> "(FLo[i,j],ACu[i,j],Mpz,conj(ACd[ir,j]),FRo[i,j]))
+        Mx = contract_o1(FLo[i,j],ACu[i,j],A[i,j],conj(ACd[ir,j]),FRo[i,j], atype(Sx))
+        My = contract_o1(FLo[i,j],ACu[i,j],A[i,j],conj(ACd[ir,j]),FRo[i,j], atype(Sy))
+        Mz = contract_o1(FLo[i,j],ACu[i,j],A[i,j],conj(ACd[ir,j]),FRo[i,j], atype(Sz))
         
-        n = sum(ein"(((aeg,abc),ehfb),ghi),cfi -> "(FLo[i,j],ACu[i,j],M[i,j],conj(ACd[ir,j]),FRo[i,j]))
+        n = contract_n1(FLo[i,j],ACu[i,j],A[i,j],conj(ACd[ir,j]),FRo[i,j])
         Mag[i,j] = [Mx/n, My/n, Mz/n]
         Mnorm[i,j] = norm(Mag[i,j])
         params.verbosity >= 4 && println("M = $(Mag[i,j])\n|M| = $(Mnorm[i,j])")
@@ -222,15 +240,15 @@ function magnetization_value(model, A, M, env, params::iPEPSOptimize{:brickwall}
 end
 
 function observable(A, model, Dz, χ, params::iPEPSOptimize)
+    A = restriction_ipeps(A)
+    A = bulid_A(A, params)
     M = bulid_M(A, params)
     rt = VUMPSRuntime(M, χ, params.boundary_alg)
     rt = leading_boundary(rt, M, params.boundary_alg)
     env = VUMPSEnv(rt, M, params.boundary_alg)
-    D = size(A, 1)
-    oc = optcont(D, χ)
 
-    e = energy_value(model, Dz, A, M, env, oc, params)
-    mag = magnetization_value(model, A, M, env, params)
+    e = energy_value(model, Dz, A, env, params)
+    mag = magnetization_value(model, A, env, params)
 
     return e, mag
 end

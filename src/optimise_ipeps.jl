@@ -17,12 +17,13 @@ end
 return the energy of the `bcipeps` 2-site hamiltonian `h` and calculated via a
 BCVUMPS with parameters `χ`, `tol` and `maxiter`.
 """
-function energy(A, model, Dz, rt, oc, params::iPEPSOptimize)
+function energy(A, model, Dz, rt, params::iPEPSOptimize)
+    A = bulid_A(A, params)
     M = bulid_M(A, params)
     rt′ = leading_boundary(rt, M, params.boundary_alg)
     Zygote.@ignore params.reuse_env && update!(rt, rt′)
     env = VUMPSEnv(rt′, M, params.boundary_alg)
-    return energy_value(model, Dz, A, M, env, oc, params)
+    return energy_value(model, Dz, A, env, params)
 end
 
 """
@@ -36,14 +37,15 @@ The energy is calculated using vumps with key include parameters `χ`, `tol` and
 """
 function optimise_ipeps(A::AbstractArray, model, χ::Int, params::iPEPSOptimize; ifWp=false, Dz::Real=0.0)
     D = size(A, 1)
-    oc = optcont(D, χ)
     A = restriction_ipeps(A)
     if ifWp
         Wp = _arraytype(A)(bulid_Wp(model.S, params))
         A′ = bulid_A(A, Wp, params)
+        A′ = bulid_A(A′, params)
         M = bulid_M(A′, params)
     else
-        M = bulid_M(A, params)
+        A′ = bulid_A(A, params)
+        M = bulid_M(A′, params)
     end
 
     rt = VUMPSRuntime(M, χ, params.boundary_alg)
@@ -51,7 +53,7 @@ function optimise_ipeps(A::AbstractArray, model, χ::Int, params::iPEPSOptimize;
     function f(A) 
         A = restriction_ipeps(A)
         ifWp && (A = bulid_A(A, Wp, params))
-        return params.ifcheckpoint ? real(checkpoint(energy, A, model, Dz, rt, oc, params)) : real(energy(A, model, Dz, rt, oc, params))
+        return params.ifcheckpoint ? real(checkpoint(energy, A, model, Dz, rt, params)) : real(energy(A, model, Dz, rt, params))
     end
     function g(A)
         # f(x)
